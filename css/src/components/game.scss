@@ -1,6 +1,6 @@
 
-$max-game-width: 800px;
-$max-game-height: 600px;
+$max-game-width: 500px;
+$max-game-height: 500px;
 
 * {
     padding: 0;
@@ -34,7 +34,7 @@ body {
             box-shadow: none;
 
             @media screen and (min-width: 768px) {
-                margin-top: 80px;
+                margin-top: 20px;
                 display: inline-block;
                 box-shadow: 0 8px 16px -8px #999;
                 box-sizing: border-box;
