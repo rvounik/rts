@@ -1,0 +1,60 @@
+
+$max-game-width: 800px;
+$max-game-height: 600px;
+
+* {
+    padding: 0;
+    margin: 0;
+    font-size: 16px;
+}
+
+body {
+    background: #000;
+
+    @media screen and (min-width: 768px) {
+        background: #fff;
+    }
+    .wrapper {
+        width: auto;
+        max-width: $max-game-width;
+        margin: auto;
+
+        @media screen and (min-width: 768px) {
+            width: $max-game-width;
+            max-width: unset;
+        }
+        .canvas-container {
+            height: auto;
+            max-height: 640px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 0;
+            margin-top: 0;
+            background: #000;
+            box-shadow: none;
+
+            @media screen and (min-width: 768px) {
+                margin-top: 80px;
+                display: inline-block;
+                box-shadow: 0 8px 16px -8px #999;
+                box-sizing: border-box;
+                border-right: solid 1px #846131;
+                border-left: solid 1px #846131;
+                border-bottom: solid 1px #846131;
+            }
+            canvas {
+                image-rendering: optimizeSpeed;             /* Older versions of FF          */
+                image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
+                image-rendering: -webkit-optimize-contrast; /* Safari                        */
+                image-rendering: -o-crisp-edges;            /* OS X & Windows Opera (12.02+) */
+                image-rendering: pixelated;                 /* Awesome future-browsers       */
+                -ms-interpolation-mode: nearest-neighbor;   /* IE  */
+            }
+            #canvas {
+                width: 100%;
+                max-width: $max-game-width;
+
+            }
+        }
+    }
+}
