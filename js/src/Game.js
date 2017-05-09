@@ -14,32 +14,41 @@ class Game extends Component {
             debug: true,
             gameState: 'init',
             engine: {
-                fps: 3,
+                fps: 5,
                 width: 500,
                 height: 500,
                 tileWidth: 50,
                 tileHeight: 50
             },
             player: {
-                x: 300,
-                y: 200,
+                x: 200,
+                y: 300,
                 rotation: 0
             }
         };
 
         // localise some globals
+        this.debug = true;
         this.timer = new Date().getTime();
+
+        // todo: redo tiletypes as follows:
+        /* 100 - 300 = player objects
+         300 - 600 = enemy objects
+         600 - 800 = traversables
+         800 - 999 = scenery (non traversable)
+         */
+
         this.playfieldArray = [
+            [1,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,2,2,2,2,2,2],
+            [2,2,3,2,2,0,0,0,0,0],
+            [0,0,0,0,0,0,0,100,0,0],
             [0,0,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0]
+            [0,0,0,0,0,0,0,0,0,1],
+            [0,0,0,255,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1,1],
+            [0,0,0,0,0,0,0,1,1,1]
 
         ];
     }
@@ -49,7 +58,7 @@ class Game extends Component {
         this.setState({ context: document.getElementById('canvas').getContext('2d') });
 
         // register reusable global window event listener for click events
-        window.addEventListener('click', (event) => {this.clickWithinBoundsHandler(event)});
+        window.addEventListener('click', (event) => {this.clickHandler(event)});
     }
 
     componentDidUpdate() {
@@ -57,20 +66,38 @@ class Game extends Component {
         this.update();
     }
 
-    // helper function that checks whether user clicked within an active boundary range todo: extract to helper
-    clickWithinBoundsHandler(event){
+    // click handler
+    clickHandler(event){
         const offsetLeft = document.getElementById("canvas").offsetLeft;
         const offsetTop = document.getElementById("canvas").offsetTop;
 
-        if (
-            event.clientX - offsetLeft >= this.bounds.xMin
-            && event.clientX - offsetLeft <= this.bounds.xMax
-            && event.clientY - offsetTop >= this.bounds.yMin
-            && event.clientY - offsetTop <= this.bounds.yMax
-        ) {
-            // executes the action that was registered for these boundaries, then resets them
-            this.bounds.action();
-            this.bounds = {};
+        // get clicked coords relative to grid
+        let mouseX = event.clientX - offsetLeft;
+        let mouseY = event.clientY - offsetTop;
+
+        // make sure user clicks within bounds
+        if(mouseX < 0 || mouseX > this.state.engine.width || mouseY < 0 || mouseY > this.state.engine.height) {
+            console.log('out of bounds');
+        } else {
+
+            // get value of grid that is at that position
+            let gridX = Math.floor(mouseX / this.state.engine.tileWidth);
+            let gridY = Math.floor(mouseY / this.state.engine.tileHeight);
+
+            switch (this.playfieldArray[gridY][gridX]) {
+                case 1:
+                case 2:
+                    console.log('cannot go to ' + gridX, gridY);
+                    break;
+                case 100:
+                    console.log('attacking enemy unit at ' + gridX, gridY);
+                    break;
+                case 255:
+                    console.log('player selected or deselected (later)');
+                    break;
+                default:
+                    console.log('moving towards tile ' + gridX, gridY)
+            }
         }
     }
 
@@ -84,19 +111,34 @@ class Game extends Component {
         this.setState(newState);
     }
 
-    createVisibleDebugGrid() {
+    createPlayField() {
         // to aid debugging, visualise the grid
         let x = 0;
         let y = 0;
+        let color = 0;
 
+        // note that currently entire grid is displayed. at some point, when grid is much larger, a partial projection should be accomplished
         for (y; y < this.state.engine.height; y+= this.state.engine.tileHeight) {
             for (x; x < this.state.engine.width; x += this.state.engine.tileWidth) {
-                this.createTile(x+1, y+1, this.state.engine.tileWidth-2, this.state.engine.tileHeight-2, '255, 255, 255')
+                switch (this.playfieldArray[y/this.state.engine.tileHeight][x/this.state.engine.tileWidth]) {
+                    case 0:   color = '50, 150, 50'; break; // empty
+                    case 1:   color = '88, 88, 88'; break; // scenery: stone
+                    case 2:   color = '0, 0, 255'; break; // scenery: water
+                    case 3:   color = '150, 40, 20'; break; // scenery: bridge
+                    case 100: color = '255, 0, 0'; break; // enemy
+                    case 255: color = '255, 255, 0'; break; // player
+                }
+                if (this.debug) {
+                    this.createTile(x + 1, y + 1, this.state.engine.tileWidth - 2, this.state.engine.tileHeight - 2, color); // uses slighyly smaller shapes so a grid is simulated
+                } else {
+                    this.createTile(x, y, this.state.engine.tileWidth, this.state.engine.tileHeight, color);
+                }
             }
             x = 0;
         }
     }
 
+    // creates basic rect shape object. should at some point be rewritten to support bitmaps
     createTile(x, y, w, h, fillColour) {
         const context = this.state.context;
         context.beginPath();
@@ -105,55 +147,14 @@ class Game extends Component {
         context.fill();
     }
 
-    createScenery() {
-    }
-
-    createEnemies() {
-    }
-
-    createPlayer() {
-        this.createTile(this.state.player.x , this.state.player.y, this.state.engine.tileWidth, this.state.engine.tileHeight, '0, 255, 0');
-    }
-
-    setNewPlayerDestination() {
-        // todo: why only fired once?
-
-        const offsetLeft = document.getElementById("canvas").offsetLeft;
-        const offsetTop = document.getElementById("canvas").offsetTop;
-        let mouseX = event.clientX - offsetLeft;
-        let mouseY = event.clientY - offsetTop;
-
-        console.log('new position set to '+mouseX,mouseY+' which translates to tile '
-            +Math.floor(mouseX/this.state.engine.tileWidth)
-            ,Math.floor(mouseY/this.state.engine.tileHeight)
-        );
-    }
-
-    // checks if there is a reason to mutate from the current gameState to another
+    // checks on every tick if there is a reason to mutate from the current gameState to another
     validateGameState(gameState) {
         let newGameState = gameState;
 
         switch (gameState) {
             case 'init' :
-                // draw titlescreen and await user clicking on start
-                // todo: add
-
-                // after clicking start, the following handler should be initialised ONCE. for convenience it is now run just once here:
-                this.bounds = {
-                    xMin: 0,
-                    xMax: 500,
-                    yMin: 0,
-                    yMax: 500,
-                    action: function() {
-                        this.setNewPlayerDestination(
-                            this.state.player.x,
-                            this.state.player.y,
-                            this.state.player.rotation
-                        )
-                    }.bind(this)
-                };
-
-                // advance to game state
+                // todo: add titlescreen
+                // todo: have it advance to game state on click
                 this.updateGameState('game');
                 break;
             case 'game' :
@@ -168,15 +169,14 @@ class Game extends Component {
         }
     }
 
+    // here the magic happens. every enemy updates its main target, sub target, rotation, attack. and sub target for player is (re)calculated
     updateInGameProjection() {
         ClearCanvas(this.state.context, this.state.engine.width, this.state.engine.height);
 
-        this.state.player.y-=1; // normally this is handled a bit more intelligent and is determined by player-set endpoint
+        // redraw entire grid (not sure how that can be optimised) including scenery, enemies, player
+        this.createPlayField();
 
-        this.createVisibleDebugGrid(); // todo: remove eventually
-        this.createScenery();
-        this.createEnemies();
-        this.createPlayer();
+        // note that each destructible element should have a unique id that can be looked up in a stats table that holds it lifecycle stats, position, targets etc
     }
 
     update() {
@@ -194,18 +194,16 @@ class Game extends Component {
             this.timer = new Date().getTime();
         }
 
-        // trigger update (on every frame)
+        // trigger update again (on every frame)
         requestAnimationFrame(() => { this.update() });
     }
 
     render() {
         return (
-            <div>
                 <canvas id = 'canvas'
                     width = { this.state.engine.width }
                     height = { this.state.engine.height }
                 >Oh no! Canvas is not supported on your device :(</canvas>
-            </div>
         )
     }
 }
