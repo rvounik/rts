@@ -33,6 +33,7 @@
     "grunt-contrib-uglify": "^2.0.0",
     "grunt-contrib-watch": "^1.0.0",
     "grunt-copy": "^0.1.0",
-    "immutability-helper": "^2.0.0"
+    "immutability-helper": "^2.0.0",
+    "pathfinding": "^0.4.18"
   }
 }
