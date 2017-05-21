@@ -3,8 +3,6 @@ import { render }  from 'react-dom';
 import PF from 'pathfinding';
 import update from 'immutability-helper';
 
-
-
 import ClearCanvas from './helpers/ClearCanvas'
 
 class Game extends Component {
@@ -49,18 +47,6 @@ class Game extends Component {
             [600,600,600,600,600,600,600,600,800,800],
             [600,600,600,600,600,600,600,800,800,800]
         ];
-        // this.sceneryMap = [
-        //     [800,600,600,600,600,600,600,600,600,600],
-        //     [600,600,600,600,801,801,801,801,801,801],
-        //     [801,801,601,801,801,600,600,600,600,600],
-        //     [600,600,600,600,600,600,600,300,600,600],
-        //     [600,600,600,600,600,600,600,600,600,600],
-        //     [600,600,600,600,600,600,600,600,600,600],
-        //     [600,600,600,600,600,600,600,600,600,800],
-        //     [600,600,600,100,600,600,600,600,600,800],
-        //     [600,600,600,600,600,600,600,600,800,800],
-        //     [600,600,600,600,600,600,600,800,800,800]
-        // ];
 
         // objects are printed on top of the map, hence it requires its own array
         // 0 = empty
@@ -118,7 +104,7 @@ class Game extends Component {
             let gridX = Math.floor(mouseX / this.state.engine.tileWidth);
             let gridY = Math.floor(mouseY / this.state.engine.tileHeight);
 
-            let tileContents = this.objectMap[gridY][gridX]; // who goes there?!
+            let tileContents = this.objectMap[gridY][gridX];
 
             if (tileContents > 0) {
                 // object selected. which one?
@@ -135,7 +121,7 @@ class Game extends Component {
                 }
             } else {
                 // no objects on that spot. asserting against sceneryMap instead
-                let tileContents = this.sceneryMap[gridY][gridX]; // what is this I dont even?!
+                let tileContents = this.sceneryMap[gridY][gridX];
 
                 if (tileContents < 800) {
                     console.log('moving to tile '+gridX, gridY);
@@ -168,7 +154,7 @@ class Game extends Component {
         let y = 0;
         let color = 0;
 
-        // note that currently entire grid is displayed. at some point, when grid is much larger, a partial projection should be accomplished
+        // note that currently entire grid is displayed. at some point, when grid is much larger, a partial projection can be accomplished
         // todo: consider moving away from using this grid to visualise the scenery and use a bitmap instead
         for (y; y < this.state.engine.height; y+= this.state.engine.tileHeight) {
             for (x; x < this.state.engine.width; x += this.state.engine.tileWidth) {
@@ -194,7 +180,7 @@ class Game extends Component {
         let color = 0;
         let tileContent;
 
-        // note that currently entire grid is displayed. at some point, when grid is much larger, a partial projection should be accomplished
+        // note that currently entire grid is displayed. at some point, when grid is much larger, a partial projection can be accomplished
         for (y; y < this.state.engine.height; y+= this.state.engine.tileHeight) {
             for (x; x < this.state.engine.width; x += this.state.engine.tileWidth) {
                 tileContent = this.objectMap[y / this.state.engine.tileHeight][x / this.state.engine.tileWidth];
@@ -321,6 +307,16 @@ class Game extends Component {
             row.map((objectId, colCount) => {
                 if (objectId > 0) {
                     if (this.statsTable[objectId]) {
+
+                        if (objectId == 300) {
+                            // enemy will attack player todo: fix bugs
+                            // let userX = Math.floor(this.statsTable[100].currentX / this.state.engine.tileWidth);
+                            // let userY = Math.floor(this.statsTable[100].currentY / this.state.engine.tileHeight);
+                            // this.statsTable[300].destinationX = userX;
+                            // this.statsTable[300].destinationY = userY;
+                            // this.statsTable[300].attack = true;
+                        }
+
                         // copy stats by reference
                         let stats = this.statsTable[objectId];
 
@@ -356,7 +352,7 @@ class Game extends Component {
                                         stats.subDestinationY = path[1][1] * this.state.engine.tileHeight;
                                         //console.log('setting '+path[1]+' as new sub destination point');
                                     } else {
-                                        console.log('path too short or click handler erroneously detected only scenery while pathfinder deteted an object on that spot. not doing anything and resetting everything.');
+                                        console.log('you shouldnt see this really. path too short or click handler erroneously detected only scenery while pathfinder detected an object on that spot. not doing anything and resetting everything.');
                                         stats.path = null;
                                         stats.destinationX = null;
                                         stats.destinationY = null;
@@ -440,13 +436,13 @@ class Game extends Component {
             })
         }.bind(this));
 
-        // before redrawing, wipe entire canvas
+        // wipe canvas
         ClearCanvas(this.state.context, this.state.engine.width, this.state.engine.height);
 
-        // redraw entire grid (not sure how that can be optimised) including enemies and player
+        // redraw scenery
         this.createScenery();
 
-        // redraw all objects (each one has its own id that can be looked up in a stats table to get values for destination, target, health, speed etc)
+        // redraw objects
         this.createObjects()
     }
 
