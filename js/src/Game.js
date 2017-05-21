@@ -41,14 +41,26 @@ class Game extends Component {
             [800,600,600,600,600,600,600,600,600,600],
             [600,600,600,600,801,801,801,801,801,801],
             [801,801,601,801,801,600,600,600,600,600],
-            [600,600,600,600,600,600,600,300,600,600],
+            [600,600,600,600,600,600,600,600,600,600],
             [600,600,600,600,600,600,600,600,600,600],
             [600,600,600,600,600,600,600,600,600,600],
             [600,600,600,600,600,600,600,600,600,800],
-            [600,600,600,100,600,600,600,600,600,800],
+            [600,600,600,600,600,600,600,600,600,800],
             [600,600,600,600,600,600,600,600,800,800],
             [600,600,600,600,600,600,600,800,800,800]
         ];
+        // this.sceneryMap = [
+        //     [800,600,600,600,600,600,600,600,600,600],
+        //     [600,600,600,600,801,801,801,801,801,801],
+        //     [801,801,601,801,801,600,600,600,600,600],
+        //     [600,600,600,600,600,600,600,300,600,600],
+        //     [600,600,600,600,600,600,600,600,600,600],
+        //     [600,600,600,600,600,600,600,600,600,600],
+        //     [600,600,600,600,600,600,600,600,600,800],
+        //     [600,600,600,100,600,600,600,600,600,800],
+        //     [600,600,600,600,600,600,600,600,800,800],
+        //     [600,600,600,600,600,600,600,800,800,800]
+        // ];
 
         // objects are printed on top of the map, hence it requires its own array
         // 0 = empty
@@ -106,24 +118,37 @@ class Game extends Component {
             let gridX = Math.floor(mouseX / this.state.engine.tileWidth);
             let gridY = Math.floor(mouseY / this.state.engine.tileHeight);
 
-            let tileContents = this.sceneryMap[gridY][gridX];
-            if (tileContents < 300) {
-                console.log('player selected or deselected a unit');
-                // update local state to select this unit
-            } else if (tileContents < 600) {
-                console.log('attacking unit '+tileContents);
-                // set destination for this unit
-                // set target for this unit
-            } else if (tileContents < 800) {
-                console.log('moving to tile '+gridX, gridY);
-                // set destination for this unit (the 100 is hardcoded for now)
-                this.statsTable['100'].destinationX = gridX;
-                this.statsTable['100'].destinationY = gridY;
-                // empty the subdestination (so it will be recalculated)
-                this.statsTable['100'].subDestinationX = null;
-                this.statsTable['100'].subDestinationY = null;
+            let tileContents = this.objectMap[gridY][gridX]; // who goes there?!
+
+            if (tileContents > 0) {
+                // object selected. which one?
+                if (tileContents < 300) {
+                    console.log('(de)selected a friendly unit. (not doing anything at the moment)')
+                } else if (tileContents < 600) {
+                    console.log('attacking unit '+tileContents+' with unit 100 (hardcoded for now)');
+                    this.statsTable['100'].destinationX = gridX;
+                    this.statsTable['100'].destinationY = gridY;
+                    // empty the subdestination (so it will be recalculated)
+                    this.statsTable['100'].subDestinationX = null;
+                    this.statsTable['100'].subDestinationY = null;
+                    this.statsTable['100'].attack = true; // set the attack flag so the engine knows destination is reached before end of path is reached
+                }
             } else {
-                console.log('can not go here');
+                // no objects on that spot. asserting against sceneryMap instead
+                let tileContents = this.sceneryMap[gridY][gridX]; // what is this I dont even?!
+
+                if (tileContents < 800) {
+                    console.log('moving to tile '+gridX, gridY);
+                    // set destination for this unit (the 100 is hardcoded for now)
+                    this.statsTable['100'].destinationX = gridX;
+                    this.statsTable['100'].destinationY = gridY;
+                    // empty the subdestination (so it will be recalculated)
+                    this.statsTable['100'].subDestinationX = null;
+                    this.statsTable['100'].subDestinationY = null;
+                    this.statsTable['100'].attack = false; // undo any previously set attack flags
+                } else {
+                    console.log('can not go here');
+                }
             }
         }
     }
@@ -139,7 +164,6 @@ class Game extends Component {
     }
 
     createScenery() {
-        // to aid debugging, visualise the grid
         let x = 0;
         let y = 0;
         let color = 0;
@@ -225,7 +249,9 @@ class Game extends Component {
                         subDestinationY: null,
                         currentX: 7 * this.state.engine.tileWidth,
                         currentY: 3 * this.state.engine.tileHeight,
-                        speed: 1
+                        speed: 1,
+                        attack: false,
+                        path: null
                     }
                 );
                 this.addObject(
@@ -239,7 +265,9 @@ class Game extends Component {
                         subDestinationY: null,
                         currentX: 3 * this.state.engine.tileWidth,
                         currentY: 7 * this.state.engine.tileHeight,
-                        speed: 5
+                        speed: 5,
+                        attack: false,
+                        path: null
                     }
                 );
                 // todo: have it advance to game state on click
@@ -257,10 +285,9 @@ class Game extends Component {
         }
     }
 
-    // here the magic happens. every enemy updates its main target, sub target, rotation, attack. and sub target for player is (re)calculated
-    updateInGameProjection() {
-        // build up a new grid for pathfinding
-        let grid = new PF.Grid(10, 10); // todo: make dynamic
+    createPathfindingGrid(width, height) {
+        // create empty grid
+        let grid = new PF.Grid(width, height);
 
         // loop through scenerymap to pick any intraversable tiles, add those to the grid
         this.sceneryMap.map(function (row, rowCount) {
@@ -282,9 +309,14 @@ class Game extends Component {
             })
         });
 
-        // for each object in objectMap, see if it has a destination set. if so, (re)calculate its path
-        let breakThis = false;
+        return grid;
+    }
 
+    // here the magic happens. every enemy updates its main target, sub target, rotation, attack. and sub target for player is (re)calculated
+    updateInGameProjection() {
+        let grid = this.createPathfindingGrid(this.sceneryMap[0].length, this.sceneryMap.length);
+
+        // for each object in objectMap, see if it has a destination set. if so, (re)calculate its path
         this.objectMap.map(function (row, rowCount) {
             row.map((objectId, colCount) => {
                 if (objectId > 0) {
@@ -295,70 +327,109 @@ class Game extends Component {
                         if (stats['destinationX'] != null && stats['destinationY'] != null) {
                             // is destination not reached and no subdestination set? calculate it and set it so object can move to next subdestination further down
                             if (stats.subDestinationX == null || stats.subDestinationY == null) {
+
+                                if (stats.attack) {
+                                    // if the attack flag is set, the object that will be attacked should be removed from the grid otherwise pathfinding cannot calculate the path to get there
+                                    grid.setWalkableAt(stats.destinationX, stats.destinationY, true); // todo: only do this when not situated adjacent to that object
+                                }
+
                                 let finder = new PF.AStarFinder(); // add diagonal movement flag
                                 let path = finder.findPath(colCount, rowCount, stats['destinationX'], stats['destinationY'], grid);
-                                //console.log('new path set: '+path);
+                                stats.path = path;
+                                //console.log('new path calculated: '+path);
 
-                                // take the first subdestination and store it in the stats table
-                                //console.log('setting '+path[1]+' as new sub destination point');
-                                stats.subDestinationX = path[1][0] * this.state.engine.tileWidth;
-                                stats.subDestinationY = path[1][1] * this.state.engine.tileHeight;
+                                if (stats.attack && path.length < 3) {
+                                    //console.log('too close to move further to target!');
+                                    stats.path = null;
+
+                                    // restore removed walkable grid unit
+                                    grid.setWalkableAt(stats.destinationX, stats.destinationY, false);
+
+                                    stats.destinationX = null;
+                                    stats.destinationY = null;
+
+                                    stats.attack = false;
+                                } else {
+                                    // whether attacking or not, there is room to move closer to destination
+                                    if (path.length > 1) {
+                                        stats.subDestinationX = path[1][0] * this.state.engine.tileWidth;
+                                        stats.subDestinationY = path[1][1] * this.state.engine.tileHeight;
+                                        //console.log('setting '+path[1]+' as new sub destination point');
+                                    } else {
+                                        console.log('path too short or click handler erroneously detected only scenery while pathfinder deteted an object on that spot. not doing anything and resetting everything.');
+                                        stats.path = null;
+                                        stats.destinationX = null;
+                                        stats.destinationY = null;
+                                        stats.subDestinationY = null;
+                                        stats.subDestinationX = null;
+                                    }
+
+                                    if (stats.attack) {
+                                        // restore removed walkable grid unit (probably redundant since rebuilt at next iteration anyway)
+                                        grid.setWalkableAt(stats.destinationX, stats.destinationY, false);
+                                    }
+                                }
                             }
 
                             // is destination set and subdestination too? movement
                             if (stats.subDestinationX != null && stats.subDestinationY != null) {
                                 //console.log('moving '+objectId+' towards '+stats.subDestinationX,stats.subDestinationY);
 
-                                let reached = false;
+                                let reachedSubDestination = false;
                                 if (stats.currentX != stats.subDestinationX) {
                                     if (stats.currentX > stats.subDestinationX) {
                                         stats.currentX -= stats.speed;
-                                        if (stats.currentX <= stats.subDestinationX) {
-                                            reached = true;
-                                        }
+                                        if (stats.currentX <= stats.subDestinationX) {reachedSubDestination = true}
                                     } else {
                                         stats.currentX += stats.speed;
-                                        if (stats.currentX >= stats.subDestinationX) {
-                                            reached = true;
-                                        }
+                                        if (stats.currentX >= stats.subDestinationX) {reachedSubDestination = true}
                                     }
                                 }
 
                                 if (stats.currentY != stats.subDestinationY) {
                                     if (stats.currentY > stats.subDestinationY) {
                                         stats.currentY -= stats.speed;
-                                        if (stats.currentY <= stats.subDestinationY) {
-                                            reached = true;
-                                        }
+                                        if (stats.currentY <= stats.subDestinationY) {reachedSubDestination = true}
                                     } else {
                                         stats.currentY += stats.speed;
-                                        if (stats.currentY >= stats.subDestinationY) {
-                                            reached = true;
-                                        }
+                                        if (stats.currentY >= stats.subDestinationY) {reachedSubDestination = true}
                                     }
                                 }
 
-                                if (reached) {
+                                if (reachedSubDestination) {
                                     //rounding
                                     stats.currentX = stats.subDestinationX;
                                     stats.currentY = stats.subDestinationY;
 
-                                    // update objectArray (it is now at a different tile)
-                                    this.objectMap[rowCount][colCount] = 0;
-                                    this.objectMap[stats.currentY/this.state.engine.tileHeight][stats.currentX/this.state.engine.tileWidth] = objectId;
-                                    //console.log(this.objectMap);
+                                    // update objectArray (it is now positioned at a different tile!)
+                                    this.objectMap[rowCount][colCount] = 0; // reset previous location
+                                    this.objectMap[stats.currentY / this.state.engine.tileHeight][stats.currentX / this.state.engine.tileWidth] = objectId;
 
                                     // reset subdestination
                                     stats.subDestinationX = null;
                                     stats.subDestinationY = null;
 
-                                    if (
-                                        (stats.destinationX*this.state.engine.tileWidth == stats.currentX) &&
-                                        (stats.destinationY*this.state.engine.tileHeight == stats.currentY)
-                                    ){
-                                        //console.log('reached final destination');
-                                        stats.destinationX = null;
-                                        stats.destinationY = null;
+                                    if (stats.attack) {
+                                        if (
+                                            ((stats.path[stats.path.length-2][0] * this.state.engine.tileWidth) == stats.currentX) &&
+                                            ((stats.path[stats.path.length-2][1] * this.state.engine.tileHeight) == stats.currentY)
+                                        ) {
+                                            // console.log('unit is within attack range, stop movement and reset destination point');
+                                            stats.destinationX = null;
+                                            stats.destinationY = null;
+                                            stats.attack = false;
+                                            stats.path = null;
+                                        }
+                                    } else {
+                                        if (
+                                            (stats.destinationX * this.state.engine.tileWidth == stats.currentX) &&
+                                            (stats.destinationY * this.state.engine.tileHeight == stats.currentY)
+                                        ) {
+                                            //console.log('unit reached its final destination, reset destination point');
+                                            stats.destinationX = null;
+                                            stats.destinationY = null;
+                                            stats.path = null;
+                                        }
                                     }
 
                                 }
