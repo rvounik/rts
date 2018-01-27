@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>RTS 2</title>
+    <style>
+        body {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .wrapper {
+            width: auto;
+            max-width: 850px;
+            margin: auto;
+        }
+        @media screen and (min-width: 1024px) {
+            .wrapper {
+                width: 850px;
+                max-width: unset;
+            }
+        }
+        .canvas-container {
+            height: auto;
+            max-height: 850px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 0;
+            margin-top: 0;
+            background: #000;
+            box-shadow: none;
+        }
+        @media screen and (min-width: 1024px) {
+            .canvas-container {
+                margin-top: 20px;
+                display: inline-block;
+                box-sizing: content-box;
+            }
+        }
+        canvas {
+            image-rendering: optimizeSpeed;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: -o-crisp-edges;
+            image-rendering: pixelated;
+            -ms-interpolation-mode: nearest-neighbor;
+        }
+        #canvas {
+            width: 100%;
+            max-width: 850px;
+            box-sizing: border-box;
+            display: block;
+            margin: 0 auto;
+            background: #000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div class="canvas-container" id="canvas-container">
+        <canvas id="canvas" width="850" height="650">Oh no! Canvas is not supported on your device :(</canvas>
+    </div>
+</div>
+
+<script type="text/javascript" src="pathfinding-browser.min.js"></script>
+
+<script>
+    // register reusable global window event listener for click events
+    window.addEventListener('click', clickHandler);
+
+    // declare some vars
+    var context = document.getElementById('canvas').getContext('2d');
+
+    // define tile map for scenery (always have 1's surrounding the 'playfield', 6 vertically, 8 horizontally)
+    var map = [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 1, 1, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 5, 1, 1, 1, 5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 5, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 2, 5, 6, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 5, 1, 5, 5, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 5, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ];
+
+    var bitmaps = [
+        {
+            id: 'grass',
+            src: 'assets/tile-grass.png',
+            img: new Image()
+        },
+        {
+            id: 'water',
+            src: 'assets/tile-water.png',
+            img: new Image()
+        },
+        {
+            id: 'tank',
+            src: 'assets/tile-tank.png',
+            img: new Image()
+        },
+        {
+            id: 'tree',
+            src: 'assets/tile-tree.png',
+            img: new Image()
+        },
+        {
+            id: 'sand',
+            src: 'assets/tile-sand.png',
+            img: new Image()
+        },
+        {
+            id: 'bridge',
+            src: 'assets/tile-bridge.png',
+            img: new Image()
+        }
+    ];
+
+    function loadBitmap(bitmap) {
+        // load the image assets by setting bitmap.img.src to bitmap.src
+        bitmap['img'].src = bitmap['src']
+    }
+
+    // load images
+    for(var bitmap=0;bitmap<bitmaps.length;bitmap++){
+        loadBitmap(bitmaps[bitmap])
+    }
+
+    function allAssetsLoaded() {
+        for (bitmap=0;bitmap<bitmaps.length;bitmap++) {
+            if (bitmap.img.naturalWidth === 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // define map to keep track of units. this is only used for the user clicking around and assigning actions and
+    // targets and is updated every time a unit changes grid position (reached destination, starts moving)
+    var unitMap = [];
+    // initially fill with zeroes based on the scenery tile map
+    for (var a = 0; a < map.length; a++) {
+        var tempUnitMap = [];
+        for (var b = 0; b < map[a].length; b++) {
+            tempUnitMap.push(0);
+        }
+        unitMap.push(tempUnitMap);
+    }
+
+    // this is fed to the pathfinding function and consists of all scenery tiles (= true) and unit tiles (= false)
+    var grid = []; // todo: rename
+
+    // collection of objects describing all units in the game (should I use class instantiation for this?)
+    var units = [
+        {
+            id: 1000,
+            unitType: 4,
+            x: 450,
+            y: 450,
+            rotation: 0,
+            gridX: 9,
+            gridY: 9,
+            gridDestX: null,
+            gridDestY: null,
+            gridSubDestX: null,
+            gridSubDestY: null,
+            path: [],
+            target: null,
+            speed: 5,
+            health: 100
+        },
+        {
+            id: 1001,
+            unitType: 4,
+            x: 750,
+            y: 450,
+            rotation: 0,
+            gridX: 15,
+            gridY: 9,
+            gridDestX: null,
+            gridDestY: null,
+            gridSubDestX: null,
+            gridSubDestY: null,
+            path: [],
+            target: null,
+            speed: 5,
+            health: 100
+        },
+        {
+            id: 100,
+            unitType: 100,
+            x: 850,
+            y: 450,
+            gridX: 17,
+            gridY: 9,
+            health: 100
+        },
+        {
+            id: 100,
+            unitType: 100,
+            x: 900,
+            y: 450,
+            gridX: 18,
+            gridY: 9,
+            health: 100
+        },
+        {
+            id: 100,
+            unitType: 100,
+            x: 850,
+            y: 500,
+            gridX: 17,
+            gridY: 10,
+            health: 100
+        }
+    ];
+
+    // keeps track of units selected by the user. much faster than querying units array.
+    var selectedUnits = [];
+
+    // determines how many tiles visible on screen, max offset from edge, and starting position of map.
+    var rangeX = 8;
+    var rangeY = 6;
+
+    // map start position (do not make it lower than rangeX, rangeY or higher than array size - range)
+    var posX = rangeX;
+    var posY = rangeY;
+
+    // dimensions of tile
+    tileWidth = 50;
+    tileHeight = 50;
+
+    // trigger update function
+    updateCanvas();
+
+    /***************************** functions *******************************/
+
+    function clickHandler(event) {
+        // todo: handler does not take scaling into account
+
+        // make sure only the canvas is targeted
+        var offsetLeft = document.getElementById("canvas").offsetLeft;
+        var offsetTop = document.getElementById("canvas").offsetTop;
+
+        // get clicked coords relative to grid
+        var mouseX = event.clientX - offsetLeft;
+        var mouseY = event.clientY - offsetTop;
+
+        // ensure user clicked within bounds
+        if(mouseX < 0 || mouseX > 850 || mouseY < 0 || mouseY > 650) {
+            console.log('out of bounds');
+        } else {
+            // get value of grid that is at that position
+            var gridX = Math.floor(mouseX / tileWidth);
+            var gridY = Math.floor(mouseY / tileHeight);
+
+            var newX, newY;
+
+            // depending on whether player clicked right, left, up or down from center, calculate new map index
+            if (gridX > rangeX) {
+                newX = posX + (gridX - rangeX);
+            } else {
+                newX = posX - (rangeX - gridX);
+            }
+            if (gridY > rangeY) {
+                newY = posY + (gridY - rangeY);
+            } else {
+                newY = posY - (rangeY - gridY);
+            }
+
+            // see if a unit lives at that position
+            if(unitMap[newY][newX] > 0){
+                if(findInSelectedUnits(unitMap[newY][newX])) {
+                    // if the unit was already selected, deselect it
+                    // console.log('deselected unit '+unitMap[newY][newX]);
+                    selectedUnits = [];
+                } else {
+                    // select the unit
+                    // todo: ensure movement stops next time it hits its subDestX,Y otherwise crash
+                    // console.log('selected unit ' + unitMap[newY][newX]);
+                    if(unitMap[newY][newX] >= 1000) {
+                        selectedUnits = [];
+                        selectedUnits.push(unitMap[newY][newX]);
+                    }
+                }
+            } else {
+                // if not, reposition the map selection to that position. unless units are selected.
+
+                // if a unit was already selected, set its target coordinates to the newX, newY
+                if(map[newY][newX] !== 1 && selectedUnits.length > 0){
+                    // move selected units
+                    for(a=0;a<selectedUnits.length;a++){
+                        var selectedUnitId = selectedUnits[a];
+                        // console.log('moving unit '+selectedUnitId+' to coordinates '+newX+','+newY+' which has id '+map[newY][newX]);
+                        moveUnitToPosition(selectedUnitId, newX, newY);
+                        // deselect the unit (this seems UI-wise to be best)
+                        selectedUnits = [];
+                    }
+                } else {
+                    // move the view to the new location
+                    posX = newX;
+                    posY = newY;
+
+                    // magic corrections (determines how much the map is allowed to move out of view. 8 for x, 6 for y)
+                    if (posX < rangeX) {
+                        posX = rangeX
+                    }
+                    if (posX > (map[0].length-9)) {
+                        posX = (map[0].length-9)
+                    }
+                    if (posY < rangeY) {
+                        posY = rangeY
+                    }
+                    if (posY > (map.length-7)) {
+                        posY = (map.length-7)
+                    }
+                }
+            }
+        }
+    }
+
+    function createPathfindingGrid(width, height) {
+        // todo: ensure this only triggers after units have fully moved to a new tile
+        // create empty grid
+        grid = new PF.Grid(width, height);
+
+        // loop through map to pick any intraversable tiles, add those to the grid
+        for(var a=0;a<map.length;a++){
+            for(var b=0;b<map[a].length;b++){
+                if(map[a][b] === 1) {
+                    // found non-walkable tile
+                    grid.setWalkableAt(b, a, false);
+                }
+            }
+        }
+
+        // loop through units and add their grid coordinates to the non-walkable tiles
+        for(var c=0;c<units.length;c++) {
+            var x = units[c].gridX;
+            var y = units[c].gridY;
+            grid.setWalkableAt(x, y, false);
+            // also populate unitMap since this is used to handle clicks by the user
+            unitMap[y][x] = units[c].id; // todo: not good enough. doesnt remove old positions
+        }
+
+        return grid;
+    }
+
+    function findInSelectedUnits(id) {
+        for(var a=0;a<selectedUnits.length;a++){
+            if(selectedUnits[a] === id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function drawMapSelection() {
+        if(allAssetsLoaded) {
+            // draw all grid units that are within view
+            for (var row = 0; row <= (2 * rangeY); row++) {
+                var tileY = posY - (rangeY); // range is -6 to 6 with 0 being middle or equal to posY
+                tileY += row;
+                for (var col = 0; col <= (2 * rangeX); col++) {
+                    var tileX = posX - (rangeX);
+                    tileX += col;
+                    drawBackgroundTile(col * tileWidth, row * tileHeight, map[tileY][tileX]);
+                }
+            }
+        }
+    }
+
+    function getBitmapForTileType(tileType) {
+        switch(tileType){
+            case 1: return findObjectInArrayById('water');
+            case 2: return findObjectInArrayById('grass');
+            case 100: return findObjectInArrayById('tree');
+            case 4: return findObjectInArrayById('tank');
+            case 5: return findObjectInArrayById('sand');
+            case 6: return findObjectInArrayById('bridge');
+            default: console.log('unknown tileType provided');return false;
+        }
+    }
+
+    function findObjectInArrayById(id){
+        for(var imageObject=0;imageObject<bitmaps.length;imageObject++){
+            if (bitmaps[imageObject]['id'] === id) {
+                return bitmaps[imageObject];
+            }
+        }
+    }
+
+    function drawBackgroundTile(x,y,tileType) {
+        var imageId = getBitmapForTileType(tileType);
+        context.drawImage(imageId['img'], x, y);
+    }
+
+    function moveUnitToPosition(unitId, newGridX, newGridY){
+        // simply saves new grid position for a unit
+        for(var c=0;c<units.length;c++) {
+            if(units[c].id === unitId) {
+                units[c].gridDestX = newGridX;
+                units[c].gridDestY = newGridY;
+                // console.log('set new destx,y for unit '+unitId);
+            }
+        }
+    }
+
+
+    function drawUnit(x,y,unit) {
+        // note that the given x,y are already adjusted to fit the current view
+        var imageId = getBitmapForTileType(unit.unitType);
+        context.drawImage(imageId['img'], x, y);
+    }
+
+    function drawUnitsInMapSelection(){
+        for(var a=0;a<units.length;a++){
+            //calculate relative x,y
+            var relX = units[a].x - ((posX-8) * tileWidth);
+            var relY = units[a].y - ((posY-6) * tileHeight);
+            if(relX>=0 && relX<850 && relY>=0 && relY <650){
+                // if in view, draw the unit
+                drawUnit(relX,relY,units[a]);
+            }
+        }
+    }
+
+    function updateUnitCoordinates() {
+        for(var c=0;c<units.length;c++) {
+            var unit = units[c];
+            var x = unit.x;
+            var y = unit.y;
+
+            // is it movable and does it have a target?
+            if (unit.id >= 1000 && unit.gridDestX && unit.gridDestY) {
+                // is there a subtarget set?
+                if (unit.gridSubDestX && unit.gridSubDestY) {
+                    // is subtarget reached?
+                    if (unit.gridX === unit.gridSubDestX && unit.gridY === unit.gridSubDestY) {
+                        // console.log('reached sub destination ' + unit.gridSubDestX + ',' + unit.gridSubDestY);
+                        unit.gridSubDestX = null;
+                        unit.gridSubDestY = null;
+                        // is final target reached?
+
+                        if (unit.gridX === unit.gridDestX && unit.gridY === unit.gridDestY) {
+                            // reached final destination
+                            // console.log('reached final destination ' + unit.gridDestX + ',' + unit.gridDestY);
+                            unit.path = [];
+                            unit.gridSubDestX = null;
+                            unit.gridSubDestY = null;
+                            unit.gridDestX = null;
+                            unit.gridDestY = null;
+                        } else {
+                            // recalculate path
+                            var finder = new PF.AStarFinder();
+                            unit.path = finder.findPath(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, grid);
+                            // console.log('path calculated, taking second entry and set it as subdest');
+                            // take the first entry off the path (actually the second, first one is current position)
+                            if(unit.path.length > 2) {
+                                unit.gridSubDestX = unit.path[1][0];
+                                unit.gridSubDestY = unit.path[1][1];
+                            } else {
+                                //console.log('path is blocked off by some other unit');
+                            }
+                        }
+                    } else {
+                        // not there yet. calculate translation for x, y (depending on orientation also)
+                        if (unit.gridSubDestX < unit.gridX) {
+                            x -= unit.speed;
+                            unit.rotation = 90;
+                            // ensure it doesnt move past its destination
+                            if (x <= ((unit.gridX - 1) * tileWidth)) {
+                                x = ((unit.gridX - 1) * tileWidth);
+                                unitMap[unit.gridY][unit.gridX] = 0;
+                                unit.gridX--
+                            }
+                        }
+                        else if (unit.gridSubDestX > unit.gridX) {
+                            x += unit.speed;
+                            unit.rotation = 90;
+                            // ensure it doesnt move past its destination
+                            if (x >= ((unit.gridX + 1) * tileWidth)) {
+                                x = ((unit.gridX + 1) * tileWidth);
+                                unitMap[unit.gridY][unit.gridX] = 0;
+                                unit.gridX++
+                            }
+                        }
+                        else if (unit.gridSubDestY < unit.gridY) {
+                            y -= unit.speed;
+                            unit.rotation = 90;
+                            // ensure it doesnt move past its destination
+                            if (y <= ((unit.gridY - 1) * tileWidth)) {
+                                y = ((unit.gridY - 1) * tileHeight);
+                                unitMap[unit.gridY][unit.gridX] = 0;
+                                unit.gridY--
+                            }
+                        }
+                        else if (unit.gridSubDestY > unit.gridY) {
+                            y += unit.speed;
+                            unit.rotation = 90;
+                            // ensure it doesnt move past its destination
+                            if (y >= ((unit.gridY + 1) * tileHeight)) {
+                                y = ((unit.gridY + 1) * tileHeight);
+                                unitMap[unit.gridY][unit.gridX] = 0;
+                                unit.gridY++
+                            }
+                        }
+                    }
+                } else {
+                    // console.log('no sub target set but target exists');
+                    // there is a target, but no sub target (calculate one)
+                    if (unit.path.length < 1) {
+                        // console.log('no path set');
+                        finder = new PF.AStarFinder();
+                        unit.path = finder.findPath(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, grid);
+                    } else {
+                        // console.log('path set, taking next entry from it and set it as sub target');
+                        // take the first entry off the path (actually the second, first one is current position)
+                        unit.gridSubDestX = unit.path[1][0];
+                        unit.gridSubDestY = unit.path[1][1];
+                        // update unitmap to reserve the tile
+                        unitMap[unit.gridY][unit.gridX] = unit.id;
+                    }
+                }
+            } else {
+                // no target set
+            }
+
+            // update x,y for this unit
+            unit.x = x;
+            unit.y = y;
+        }
+    }
+
+    function updateCanvas() {
+        grid = createPathfindingGrid(this.map[0].length, this.map.length); // todo: shouldnt trigger every tick!
+        clearCanvas();
+        drawMapSelection();
+        updateUnitCoordinates();
+        drawUnitsInMapSelection();
+        setTimeout(updateCanvas, 50);
+    }
+
+    function clearCanvas() {
+        context.fillStyle = '#000';
+        context.fillRect(0, 0, 850, 650);
+    }
+</script>
+
+</body>
+</html>
