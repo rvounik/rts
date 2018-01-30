@@ -68,10 +68,13 @@
 <script type="text/javascript" src="pathfinding-browser.min.js"></script>
 
 <script>
-    // register reusable global window event listener for click events
+    // register global window event listener for click events
     window.addEventListener('click', clickHandler);
+    window.addEventListener('mousemove', hoverHandler);
 
-    // declare some vars
+
+
+        // declare some vars
     var context = document.getElementById('canvas').getContext('2d');
 
     // define tile map for scenery (always have 1's surrounding the 'playfield', 6 vertically, 8 horizontally)
@@ -132,6 +135,11 @@
         {
             id: 'bridge',
             src: 'assets/tile-bridge.png',
+            img: new Image()
+        },
+        {
+            id: 'tank-selected',
+            src: 'assets/tile-tank-selected.png',
             img: new Image()
         }
     ];
@@ -251,8 +259,15 @@
     tileWidth = 50;
     tileHeight = 50;
 
+    // set some vars to facilitate edge scrolling
+    var oldtimer = 0;
+    var edgeScrolling = false;
+    var scrollDirX = 0;
+    var scrollDirY = 0;
+
     // trigger update function
     updateCanvas();
+    updateEdgeScroller();
 
     /***************************** functions *******************************/
 
@@ -340,6 +355,33 @@
         }
     }
 
+    function hoverHandler(event) {
+        // make sure only the canvas is targeted
+        var offsetLeft = document.getElementById("canvas").offsetLeft;
+        var offsetTop = document.getElementById("canvas").offsetTop;
+
+        // get clicked coords relative to grid
+        var mouseX = event.clientX - offsetLeft;
+        var mouseY = event.clientY - offsetTop;
+
+        if((mouseY > 650 ) || (mouseX > 850) || (mouseX < 0 || (mouseX > 50 && mouseX < 800)) && (mouseY < 0 || (mouseY > 50 && mouseY < 600))) {
+            edgeScrolling = false;
+        } else {
+            edgeScrolling = true;
+            scrollDirX = 0;
+            scrollDirY = 0;
+            if     (mouseY < 50  && mouseX > 800){scrollDirX++;scrollDirY--}
+            else if(mouseY > 600 && mouseX > 800){scrollDirX++;scrollDirY++}
+            else if(mouseY <  50 && mouseX < 50){scrollDirX--;scrollDirY--}
+            else if(mouseY > 600 && mouseX < 50){scrollDirX--;scrollDirY++}
+            else if(mouseX > 800){scrollDirX++}
+            else if(mouseX < 50){scrollDirX--}
+            else if(mouseY > 600){scrollDirY++}
+            else if(mouseY < 50){scrollDirY--}
+            else {/* no idea what user wants */}
+        }
+    }
+
     function createPathfindingGrid(width, height) {
         // todo: ensure this only triggers after units have fully moved to a new tile
         // create empty grid
@@ -392,14 +434,15 @@
         }
     }
 
-    function getBitmapForTileType(tileType) {
+    function getBitmapForTileType(tileType, id = null) {
         switch(tileType){
             case 1: return findObjectInArrayById('water');
             case 2: return findObjectInArrayById('grass');
             case 100: return findObjectInArrayById('tree');
-            case 4: return findObjectInArrayById('tank');
+            case 4: if(findInSelectedUnits(id)){return findObjectInArrayById('tank-selected')}else{return findObjectInArrayById('tank')};
             case 5: return findObjectInArrayById('sand');
             case 6: return findObjectInArrayById('bridge');
+            case 7: return findObjectInArrayById('tank-selected');
             default: console.log('unknown tileType provided');return false;
         }
     }
@@ -431,13 +474,13 @@
 
     function drawUnit(x,y,unit) {
         // note that the given x,y are already adjusted to fit the current view
-        var imageId = getBitmapForTileType(unit.unitType);
+        var imageId = getBitmapForTileType(unit.unitType, unit.id);
         context.drawImage(imageId['img'], x, y);
     }
 
     function drawUnitsInMapSelection(){
         for(var a=0;a<units.length;a++){
-            //calculate relative x,y
+            // calculate relative x,y
             var relX = units[a].x - ((posX-8) * tileWidth);
             var relY = units[a].y - ((posY-6) * tileHeight);
             if(relX>=0 && relX<850 && relY>=0 && relY <650){
@@ -554,12 +597,20 @@
         }
     }
 
+    function updateEdgeScroller() {
+        if(edgeScrolling) {
+            if(posX+scrollDirX > rangeX && posX+scrollDirX < (map[0].length-rangeX)) {posX += scrollDirX}
+            if(posY+scrollDirY > rangeY && posY+scrollDirY < (map.length-rangeY)) {posY += scrollDirY}
+        }
+    }
+
     function updateCanvas() {
         grid = createPathfindingGrid(this.map[0].length, this.map.length); // todo: shouldnt trigger every tick!
         clearCanvas();
         drawMapSelection();
         updateUnitCoordinates();
         drawUnitsInMapSelection();
+        if(Date.now()-100 > oldtimer) {oldtimer=Date.now();updateEdgeScroller()}
         setTimeout(updateCanvas, 50);
     }
 
