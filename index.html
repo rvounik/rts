@@ -149,6 +149,7 @@
 
     // load images
     for(var bitmap=0;bitmap<bitmaps.length;bitmap++){
+        // todo: refactor to use map
         loadBitmap(bitmaps[bitmap])
     }
 
@@ -161,19 +162,6 @@
 
         return true;
     }
-
-    // define map to keep track of units. this is only used for the user clicking around and assigning actions and
-    // targets and is updated every time a unit changes grid position (reached destination, starts moving)
-//    var unitMap = [];
-//    // initially fill with zeroes based on the scenery tile map
-//    for (var a = 0; a < map.length; a++) {
-//        var tempUnitMap = [];
-//        for (var b = 0; b < map[a].length; b++) {
-//            tempUnitMap.push(0);
-//        }
-//        unitMap.push(tempUnitMap);
-//    }
-
 
     // collection of objects describing all units in the game (should I use class instantiation for this?)
     var units = [
@@ -248,8 +236,8 @@
     var rangeY = 6;
 
     // map start position (do not make it lower than rangeX, rangeY or higher than array size - range)
-    var posX = rangeX;
-    var posY = rangeY;
+    var posX = 8;
+    var posY = 6;
 
     // dimensions of tile
     tileWidth = 50;
@@ -261,15 +249,10 @@
     var scrollDirX = 0;
     var scrollDirY = 0;
 
-    // this is fed to the pathfinding function and consists of all scenery tiles (= true) and unit tiles (= false)
-    // var grid = []; // todo: rename
-    //var grid = [];
-    // todo: ensure this only triggers after units have fully moved to a new tile
     // create empty grid
     var grid = createPathfindingGrid();
 
     var finder = new PF.AStarFinder();
-    var path;
 
     // trigger update function
     updateCanvas();
@@ -494,20 +477,25 @@
         }
     }
 
-    function drawUnit(x,y,unit) {
+    function drawUnit(x,y,rotation = 0,unit) {
         // note that the given x,y are already adjusted to fit the current view
         var imageId = getBitmapForTileType(unit.unitType, unit.id);
-        context.drawImage(imageId['img'], x, y);
+        context.save();
+        context.translate(x + (tileWidth / 2), y + (tileHeight / 2)); // move canvas to spawn / pivoting position
+        context.rotate(rotation * Math.PI / 180); // rotate to given value in radians
+        context.drawImage(imageId['img'], 0 - (tileWidth / 2), 0 - (tileHeight / 2));
+        context.restore();
     }
 
     function drawUnitsInMapSelection(){
-        for(var a=0;a<units.length;a++){
+        for(var a = 0; a < units.length; a ++){
             // calculate relative x,y
-            var relX = units[a].x - ((posX-8) * tileWidth);
-            var relY = units[a].y - ((posY-6) * tileHeight);
-            if(relX>=0 && relX<850 && relY>=0 && relY <650){
+            var relX = units[a].x - ((posX - rangeX) * tileWidth);
+            var relY = units[a].y - ((posY - rangeY) * tileHeight);
+            var rotation = units[a].rotation;
+            if(relX >= 0 && relX < 850 && relY >= 0 && relY < 650){
                 // if in view, draw the unit
-                drawUnit(relX,relY,units[a]);
+                drawUnit(relX,relY,rotation,units[a]);
             }
         }
     }
@@ -553,7 +541,7 @@
                             if(unit.path.length >= 2) {
                                 unit.gridSubDestX = unit.path[1][0];
                                 unit.gridSubDestY = unit.path[1][1];
-                                // todo: reserve the destination tile (isnt this done in the grid creation function? check it)
+                                // todo: reserve the destination tile (isnt this done in the grid creation function? I think so.. check it)
                             } else {
                                 // path is blocked off by some other unit or incorrectly calculated
                             }
@@ -563,7 +551,7 @@
                         if (unit.gridSubDestX < unit.gridX) {
                             //  todo: refactor this whole bit. its possible.
                             x -= unit.speed;
-                            unit.rotation = 90;
+                            unit.rotation = 270;
                             // ensure it doesnt move past its destination
                             if (x <= ((unit.gridX - 1) * tileWidth)) {
                                 x = ((unit.gridX - 1) * tileWidth);
@@ -587,7 +575,7 @@
                         }
                         else if (unit.gridSubDestY < unit.gridY) {
                             y -= unit.speed;
-                            unit.rotation = 90;
+                            unit.rotation = 0;
                             // ensure it doesnt move past its destination
                             if (y <= ((unit.gridY - 1) * tileWidth)) {
                                 y = ((unit.gridY - 1) * tileHeight);
@@ -599,7 +587,7 @@
                         }
                         else if (unit.gridSubDestY > unit.gridY) {
                             y += unit.speed;
-                            unit.rotation = 90;
+                            unit.rotation = 180;
                             // ensure it doesnt move past its destination
                             if (y >= ((unit.gridY + 1) * tileHeight)) {
                                 y = ((unit.gridY + 1) * tileHeight);
@@ -616,7 +604,7 @@
                         unit.gridSubDestX = unit.path[1][0];
                         unit.gridSubDestY = unit.path[1][1];
                     } else {
-                        // cannot move right now due to blocking. will move eventually (or implement a timeout?)
+                        // cannot move right now due to blocking. will move eventually todo: implement a timeout
                     }
                 }
             } else {
