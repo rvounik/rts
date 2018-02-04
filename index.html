@@ -136,8 +136,8 @@
             img: new Image()
         },
         {
-            id: 'tank-selected',
-            src: 'assets/tile-tank-selected.png',
+            id: 'tank-enemy',
+            src: 'assets/tile-tank-enemy.png',
             img: new Image()
         }
     ];
@@ -164,9 +164,11 @@
     }
 
     // collection of objects describing all units in the game (should I use class instantiation for this?)
+    // 1000 > own units
+    // 2000 > enemy units
     var units = [
         {
-            id: 1000,
+            id: 1001,
             unitType: 4,
             x: 450,
             y: 450,
@@ -183,15 +185,15 @@
             health: 100
         },
         {
-            id: 1001,
-            unitType: 4,
+            id: 2001,
+            unitType: 7,
             x: 750,
             y: 450,
             rotation: 0,
             gridX: 15,
             gridY: 9,
-            gridDestX: null,
-            gridDestY: null,
+            gridDestX: 32,
+            gridDestY: 9,
             gridSubDestX: null,
             gridSubDestY: null,
             path: [],
@@ -299,10 +301,20 @@
                 var unit = findInUnitsByGridCoordinates(newX, newY);
 
                 if(unit) {
-                    // deselect all units (wont work when implementing attack targets, but okay for now)
-                    selectedUnits = [];
-                    // add the unit
-                    selectedUnits.push(unit.id);
+                    // is it an enemy unit?
+                    if(unit.id >= 2000){
+                        // get the currently selected unit(s) and set its target to the enemy unit that the user clicked on
+                        // console.log('setting target');
+                        for(var ownUnit=0;ownUnit<selectedUnits.length;ownUnit++) {
+                            findUnitById(selectedUnits[ownUnit]).target = unit.id;
+                        }
+                        selectedUnits = [];
+                    } else {
+                        // deselect all units
+                        selectedUnits = [];
+                        // add the unit
+                        selectedUnits.push(unit.id);
+                    }
                 } else {
                     // not a unit. move map.
                     setNewMapCoordinates(newX, newY);
@@ -317,6 +329,11 @@
                         var selectedUnitId = selectedUnits[a];
                         // console.log('moving unit '+selectedUnitId+' to coordinates '+newX+','+newY+' which has id '+map[newY][newX]);
                         moveUnitToPosition(selectedUnitId, newX, newY);
+                        // clear all targets of selected units
+                        // clearing targets
+                        for(var ownUnit=0;ownUnit<selectedUnits.length;ownUnit++) {
+                            findUnitById(selectedUnits[ownUnit]).target = null;
+                        }
                         // deselect the unit (this seems UI-wise to be best)
                         selectedUnits = [];
                     }
@@ -446,10 +463,10 @@
             case 1: return findObjectInArrayById('water');
             case 2: return findObjectInArrayById('grass');
             case 100: return findObjectInArrayById('tree');
-            case 4: if(findInSelectedUnitsById(id)){return findObjectInArrayById('tank-selected')}else{return findObjectInArrayById('tank')}
+            case 4: return findObjectInArrayById('tank');
             case 5: return findObjectInArrayById('sand');
             case 6: return findObjectInArrayById('bridge');
-            case 7: return findObjectInArrayById('tank-selected');
+            case 7: return findObjectInArrayById('tank-enemy');
             default: console.log('unknown tileType provided');return false;
         }
     }
@@ -462,7 +479,15 @@
         }
     }
 
-    function drawBackgroundTile(x,y,tileType) {
+    function findUnitById(id) {
+        for(var unit=0;unit<units.length;unit++){
+            if (units[unit]['id'] === id) {
+                return units[unit];
+            }
+        }
+    }
+
+    function drawBackgroundTile(x, y, tileType) {
         var imageId = getBitmapForTileType(tileType);
         context.drawImage(imageId['img'], x, y);
     }
@@ -477,14 +502,18 @@
         }
     }
 
-    function drawUnit(x,y,rotation = 0,unit) {
-        // note that the given x,y are already adjusted to fit the current view
+    function drawUnit(x, y, rotation = 0, unit) {
+        // note that the given x, y are already adjusted to fit the current view
         var imageId = getBitmapForTileType(unit.unitType, unit.id);
         context.save();
         context.translate(x + (tileWidth / 2), y + (tileHeight / 2)); // move canvas to spawn / pivoting position
         context.rotate(rotation * Math.PI / 180); // rotate to given value in radians
         context.drawImage(imageId['img'], 0 - (tileWidth / 2), 0 - (tileHeight / 2));
         context.restore();
+        context.strokeStyle="#333";
+        context.lineWidth=2;
+        if(findInSelectedUnitsById(unit.id)){context.strokeRect(x,y,tileWidth,tileHeight)}
+
     }
 
     function drawUnitsInMapSelection(){
@@ -500,13 +529,23 @@
         }
     }
 
-    function getPathForUnitPositions(x,y,newx,newy) {
+    function getPathForUnitPositions(x,y,newx,newy,target=false) {
         // you need to reinstantiate the grid for each call! see https://github.com/qiao/PathFinding.js/issues/109
         grid = createPathfindingGrid();
 
+        // right before calculating the path, set the current grid position to walkable (otherwise path wont be calculated)
         grid.setWalkableAt(x, y, true);
+        // if path is towards a target, set it walkable otherwise no path is calculated
+        if(target){grid.setWalkableAt(newx,newy,true)}
+        // calculate the path
         var pathOutput = finder.findPath(x, y, newx, newy, grid);
+        // reset the grid positions that previously were marked walkable
         grid.setWalkableAt(x, y, false);
+        if(target){grid.setWalkableAt(newx,newy,false)}
+
+        // keep in mind, the path shouldnt end in the target's x,y, so pop that last entry off the path if moving towards a target
+        if(target){pathOutput.pop()}
+
         return pathOutput;
     }
 
@@ -516,7 +555,20 @@
             var x = unit.x;
             var y = unit.y;
 
-            // is unit movable (id>1000) and does it have a target?
+            // first, check if gridDestX,Y still matches the target's X,Y. if not, update (chase mode)
+            if(unit.target){
+                var targetX = findUnitById(unit.target).gridX;
+                var targetY = findUnitById(unit.target).gridY;
+                if(unit.gridDestX !== targetX || unit.gridDestY !== targetY) {
+                    // console.log('chasing target');
+                    unit.gridDestX = null;
+                    unit.gridDestY = null;
+                    unit.gridSubDestX = null;
+                    unit.gridSubDestY = null;
+                }
+            }
+
+            // is unit movable (id>1000) and does it have a grid destination?
             if (unit.id >= 1000 && unit.gridDestX && unit.gridDestY) {
                 // is there a subtarget set?
                 if (unit.gridSubDestX && unit.gridSubDestY) {
@@ -536,20 +588,21 @@
                             unit.gridDestY = null;
                         } else {
                             // recalculate path
-                            unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY);
+                            var target = unit.target !== null; // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
+                            unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, target);
                             // take the first entry off the path (actually the second, first one is current position)
                             if(unit.path.length >= 2) {
                                 unit.gridSubDestX = unit.path[1][0];
                                 unit.gridSubDestY = unit.path[1][1];
-                                // todo: reserve the destination tile (isnt this done in the grid creation function? I think so.. check it)
                             } else {
                                 // path is blocked off by some other unit or incorrectly calculated
                             }
                         }
                     } else {
                         // not there yet. calculate translation for x, y (depending on orientation also)
+                        // todo: there is a bug where a sudden change in target or gridDestX,Y results in x,y of a unit being off
+                        // todo: to prevent this, when traversing x, ensure y is floored/ceiled so it never runs on a wrong axis
                         if (unit.gridSubDestX < unit.gridX) {
-                            //  todo: refactor this whole bit. its possible.
                             x -= unit.speed;
                             unit.rotation = 270;
                             // ensure it doesnt move past its destination
@@ -599,7 +652,8 @@
                         }
                     }
                 } else {
-                    unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY);
+                    var targetFlag = (unit.target !== null); // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
+                    unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, targetFlag);
                     if(unit.path.length > 1) {
                         unit.gridSubDestX = unit.path[1][0];
                         unit.gridSubDestY = unit.path[1][1];
@@ -608,7 +662,14 @@
                     }
                 }
             } else {
-                // no target set for this unit, nothing to do here
+                // no gridDestX,Y set for this unit, does it have a target?
+                if(unit.id >= 1000 && unit.target !== null) {
+                    var targetUnit = findUnitById(unit.target);
+                    unit.gridDestX = targetUnit.gridX;
+                    unit.gridDestY = targetUnit.gridY;
+                } else {
+                    // no target, no destination. guard mode.
+                }
             }
 
             // update x,y for this unit
