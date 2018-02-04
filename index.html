@@ -65,6 +65,8 @@
     </div>
 </div>
 
+<audio id="tank" src="assets/tank.wav" preload="auto"></audio>
+
 <script type="text/javascript" src="pathfinding-browser.min.js"></script>
 
 <script>
@@ -75,7 +77,7 @@
     // declare some vars
     var context = document.getElementById('canvas').getContext('2d');
 
-    // define tile map for scenery (always have 1's surrounding the 'playfield', 6 vertically, 8 horizontally)
+    // define tile map for scenery (always have 1's surrounding the 'playfield'; 6 vertically, 8 horizontally)
     var map = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -90,9 +92,9 @@
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
-        [1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
-        [1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
-        [1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 2, 5, 6, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 6, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 5, 1, 5, 5, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 5, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
@@ -139,6 +141,11 @@
             id: 'tank-enemy',
             src: 'assets/tile-tank-enemy.png',
             img: new Image()
+        },
+        {
+            id: 'tank-shot',
+            src: 'assets/tile-tank-shot.png',
+            img: new Image()
         }
     ];
 
@@ -147,13 +154,13 @@
         bitmap['img'].src = bitmap['src']
     }
 
-    // load images todo: refactor to use map
-    for(var bitmap=0;bitmap<bitmaps.length;bitmap++){
-        loadBitmap(bitmaps[bitmap])
-    }
+    // load bitmaps
+    bitmaps.map(bitmap => {
+       loadBitmap(bitmap);
+    });
 
     function allAssetsLoaded() {
-        for (bitmap=0;bitmap<bitmaps.length;bitmap++) {
+        for (var bitmap=0;bitmap<bitmaps.length;bitmap++) {
             if (bitmap.img.naturalWidth === 0) {
                 return false;
             }
@@ -182,7 +189,10 @@
             target: null,
             speed: 5,
             health: 100,
-            range: 4
+            range: 4,
+            rate: 5,
+            damage: 20,
+            rateTimer: 0
         },
         {
             id: 1002,
@@ -200,7 +210,10 @@
             target: null,
             speed: 5,
             health: 100,
-            range: 4
+            range: 4,
+            rate: 5,
+            damage: 20,
+            rateTimer: 0
         },
         {
             id: 2001,
@@ -228,7 +241,7 @@
             rotation: 0,
             gridX: 9,
             gridY: 15,
-            gridDestX: 32,
+            gridDestX: 28,
             gridDestY: 9,
             gridSubDestX: null,
             gridSubDestY: null,
@@ -309,8 +322,11 @@
 
     // create empty grid
     var grid = createPathfindingGrid();
-
     var finder = new PF.AStarFinder();
+
+    // some runtime parameters
+    var autoCenter = false;
+    var soundEffects = false;
 
     // trigger update function
     updateCanvas();
@@ -410,6 +426,35 @@
         }
     }
 
+    function hoverHandler(event) {
+        // make sure only the canvas is targeted
+        var offsetLeft = document.getElementById("canvas").offsetLeft;
+        var offsetTop = document.getElementById("canvas").offsetTop;
+
+        // get clicked coords relative to grid
+        var mouseX = event.clientX - offsetLeft;
+        var mouseY = event.clientY - offsetTop;
+
+        if((mouseY > 650 ) || (mouseX > 850) || (mouseX < 0 || (mouseX > 25 && mouseX < 825)) && (mouseY < 0 || (mouseY > 25 && mouseY < 625))) {
+            edgeScrolling = false;
+        } else {
+            edgeScrolling = true;
+            edgeScrollingFlag = true;
+            scrollDirX = 0;
+            scrollDirY = 0;
+            if     (mouseY < 25  && mouseX > 825){scrollDirX++;scrollDirY--}
+            else if(mouseY > 625 && mouseX > 825){scrollDirX++;scrollDirY++}
+            else if(mouseY <  25 && mouseX < 25){scrollDirX--;scrollDirY--}
+            else if(mouseY > 625 && mouseX < 25){scrollDirX--;scrollDirY++}
+            else if(mouseX > 825){scrollDirX++}
+            else if(mouseX < 25){scrollDirX--}
+            else if(mouseY > 625){scrollDirY++}
+            else if(mouseY < 25){scrollDirY--}
+            else {/* no idea what user wants */}
+        }
+    }
+
+
     function setTargetForSelectedUnitsToId(id){
         for(var ownUnit=0;ownUnit<selectedUnits.length;ownUnit++) {
             findUnitById(selectedUnits[ownUnit]).target = id;
@@ -433,34 +478,6 @@
         }
         if (posY > (map.length - 7)) {
             posY = (map.length - 7)
-        }
-    }
-
-    function hoverHandler(event) {
-        // make sure only the canvas is targeted
-        var offsetLeft = document.getElementById("canvas").offsetLeft;
-        var offsetTop = document.getElementById("canvas").offsetTop;
-
-        // get clicked coords relative to grid
-        var mouseX = event.clientX - offsetLeft;
-        var mouseY = event.clientY - offsetTop;
-
-        if((mouseY > 650 ) || (mouseX > 850) || (mouseX < 0 || (mouseX > 50 && mouseX < 800)) && (mouseY < 0 || (mouseY > 50 && mouseY < 600))) {
-            edgeScrolling = false;
-        } else {
-            edgeScrolling = true;
-            edgeScrollingFlag = true;
-            scrollDirX = 0;
-            scrollDirY = 0;
-            if     (mouseY < 50  && mouseX > 800){scrollDirX++;scrollDirY--}
-            else if(mouseY > 600 && mouseX > 800){scrollDirX++;scrollDirY++}
-            else if(mouseY <  50 && mouseX < 50){scrollDirX--;scrollDirY--}
-            else if(mouseY > 600 && mouseX < 50){scrollDirX--;scrollDirY++}
-            else if(mouseX > 800){scrollDirX++}
-            else if(mouseX < 50){scrollDirX--}
-            else if(mouseY > 600){scrollDirY++}
-            else if(mouseY < 50){scrollDirY--}
-            else {/* no idea what user wants */}
         }
     }
 
@@ -529,12 +546,13 @@
         }
     }
 
-    function getBitmapForTileType(tileType, id = null) {
+    function getBitmapForTileType(tileType, state = null) {
+        // if 'state' is provided, append that to the bitmap id
         switch(tileType){
             case 1: return findObjectInArrayById('water');
             case 2: return findObjectInArrayById('grass');
             case 100: return findObjectInArrayById('tree');
-            case 4: return findObjectInArrayById('tank');
+            case 4: return state === null ? findObjectInArrayById('tank') : findObjectInArrayById('tank-' + state);
             case 5: return findObjectInArrayById('sand');
             case 6: return findObjectInArrayById('bridge');
             case 7: return findObjectInArrayById('tank-enemy');
@@ -565,7 +583,7 @@
 
     function moveUnitToPosition(unitId, newGridX, newGridY){
         // simply saves new grid position for a unit
-        for(var c=0;c<units.length;c++) {
+        for(var c = 0; c < units.length; c ++) {
             if(units[c].id === unitId) {
                 units[c].gridDestX = newGridX;
                 units[c].gridDestY = newGridY;
@@ -574,48 +592,54 @@
     }
 
     function drawUnit(x, y, rotation = 0, unit) {
+        var state = null;
+        if (unit.rateTimer > unit.rate) {
+            state = 'shot';
+        }
         // note that the given x, y are already adjusted to fit the current view
-        var imageId = getBitmapForTileType(unit.unitType, unit.id);
+        var imageId = getBitmapForTileType(unit.unitType, state);
         context.save();
         context.translate(x + (tileWidth / 2), y + (tileHeight / 2)); // move canvas to spawn / pivoting position
         context.rotate(rotation * Math.PI / 180); // rotate to given value in radians
         context.drawImage(imageId['img'], 0 - (tileWidth / 2), 0 - (tileHeight / 2));
         context.restore();
-        context.strokeStyle="#333";
-        context.lineWidth=2;
-        if(findInSelectedUnitsById(unit.id)){context.strokeRect(x,y,tileWidth,tileHeight)}
+
+        // selection caret
+        context.strokeStyle = "#333";
+        context.lineWidth = 2;
+        if (findInSelectedUnitsById(unit.id)){context.strokeRect(x, y, tileWidth, tileHeight)}
 
     }
 
     function drawUnitsInMapSelection(){
-        for(var a = 0; a < units.length; a ++){
+        for (var a = 0; a < units.length; a ++){
             // calculate relative x,y
             var relX = units[a].x - ((posX - rangeX) * tileWidth);
             var relY = units[a].y - ((posY - rangeY) * tileHeight);
             var rotation = units[a].rotation;
-            if(relX >= 0 && relX < 850 && relY >= 0 && relY < 650){
+            if (relX >= 0 && relX < 850 && relY >= 0 && relY < 650){
                 // if in view, draw the unit
                 drawUnit(relX,relY,rotation,units[a]);
             }
         }
     }
 
-    function getPathForUnitPositions(x,y,newx,newy,target=false) {
+    function getPathForUnitPositions(x, y, newx, newy, target = false) {
         // you need to reinstantiate the grid for each call! see https://github.com/qiao/PathFinding.js/issues/109
         grid = createPathfindingGrid();
 
         // right before calculating the path, set the current grid position to walkable (otherwise path wont be calculated)
         grid.setWalkableAt(x, y, true);
         // if path is towards a target, set it walkable otherwise no path is calculated
-        if(target){grid.setWalkableAt(newx,newy,true)}
+        if (target){grid.setWalkableAt(newx, newy, true)}
         // calculate the path
         var pathOutput = finder.findPath(x, y, newx, newy, grid);
         // reset the grid positions that previously were marked walkable
         grid.setWalkableAt(x, y, false);
-        if(target){grid.setWalkableAt(newx,newy,false)}
+        if (target){grid.setWalkableAt(newx,newy,false)}
 
         // keep in mind, the path shouldnt end in the target's x,y, so pop that last entry off the path if moving towards a target
-        if(target){pathOutput.pop()}
+        if (target){pathOutput.pop()}
 
         return pathOutput;
     }
@@ -664,7 +688,7 @@
 
                             // within attack range?
                             if(unit.target !== null && unit.path.length < unit.range) {
-                                console.log('within reach (clear path and dest)');
+                                // within reach (clear path and dest
                                 unit.path = [];
                                 unit.gridSubDestX = null;
                                 unit.gridSubDestY = null;
@@ -736,21 +760,51 @@
                 } else {
                     var targetFlag = (unit.target !== null); // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
                     unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, targetFlag);
-                    if(unit.target !== null && unit.path.length < unit.range) {
-                        unit.path = [];
-                        unit.gridSubDestX = null;
-                        unit.gridSubDestY = null;
-                        unit.gridDestX = null;
-                        unit.gridDestY = null;
-                    }
+
                     if(unit.path.length > 1) {
-                        unit.gridSubDestX = unit.path[1][0];
-                        unit.gridSubDestY = unit.path[1][1];
-                    } else {
-                        // cannot move closer (but will keep looking if its needed) (could be expensive!)
-                        if(unit.target !== null){
-                            rotateUnitTowardsTheTarget(unit);
+                        // if a path was calculated..
+                        if (unit.target !== null) {
+                            // and there is a target..
+                            if (unit.path.length < unit.range) {
+                                // and the path is shorter than the range:
+
+                                // erase the path, we can shoot from here
+                                unit.path = [];
+                                unit.gridSubDestX = null;
+                                unit.gridSubDestY = null;
+                                unit.gridDestX = null;
+                                unit.gridDestY = null;
+
+                                rotateUnitTowardsTheTarget(unit);
+
+                                // do the timer thingies for shooting
+                                unit.rateTimer += 0.1;
+                                var flashTimeout = 0.1;
+                                if(unit.rateTimer > unit.rate && unit.rateTimer < (unit.rate+flashTimeout)) {
+                                    if(soundEffects) {
+                                        document.getElementById('tank').play(); // todo: does not handle multiple instances playing
+                                    }
+                                    flash();
+                                }
+                                if (unit.rateTimer > unit.rate) {
+                                    var shotFrameTimeout = 0.5;
+                                    if (unit.rateTimer > (unit.rate + shotFrameTimeout)) {
+                                        // this number is basically the timeout for the frame with the unit shooting
+                                        unit.rateTimer = 0;
+                                    }
+                                }
+                            } else {
+                                // there is room to move closer
+                                unit.gridSubDestX = unit.path[1][0];
+                                unit.gridSubDestY = unit.path[1][1];
+                            }
+                        } else {
+                            // set next sub destination for this unit
+                            unit.gridSubDestX = unit.path[1][0];
+                            unit.gridSubDestY = unit.path[1][1];
                         }
+                    } else {
+                        console.log('path is too short, probably because end point is blocked. waiting.. (needs a timeout)');
                     }
                 }
             } else {
@@ -760,7 +814,7 @@
                     unit.gridDestX = targetUnit.gridX;
                     unit.gridDestY = targetUnit.gridY;
                 } else {
-                    // no target, no destination (guard mode)
+                    // no target, no grid destination, so.. guard mode
                 }
             }
 
@@ -821,9 +875,10 @@
             if(posX !== findUnitById(selectedUnits[0]).gridX || posY !== findUnitById(selectedUnits[0]).gridY){
                 edgeScrollingFlag = false;
                 // if a single unit is selected and the current view positions are different, update them (follow mode)
-                // todo: there is a bug when a unit is selected that is within rangeX but at the boundaries at least
-                posX = findUnitById(selectedUnits[0]).gridX;
-                posY = findUnitById(selectedUnits[0]).gridY;
+                if(autoCenter) {
+                    posX = findUnitById(selectedUnits[0]).gridX;
+                    posY = findUnitById(selectedUnits[0]).gridY;
+                }
             }
         }
 
@@ -847,7 +902,14 @@
         context.fillStyle = '#000';
         context.fillRect(0, 0, 850, 650);
     }
+
+    function flash() {
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, 850, 650);
+    }
 </script>
+
+
 
 </body>
 </html>
