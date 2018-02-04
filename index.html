@@ -147,9 +147,8 @@
         bitmap['img'].src = bitmap['src']
     }
 
-    // load images
+    // load images todo: refactor to use map
     for(var bitmap=0;bitmap<bitmaps.length;bitmap++){
-        // todo: refactor to use map
         loadBitmap(bitmaps[bitmap])
     }
 
@@ -163,7 +162,7 @@
         return true;
     }
 
-    // collection of objects describing all units in the game (should I use class instantiation for this?)
+    // collection of objects describing all units in the game
     // 1000 > own units
     // 2000 > enemy units
     var units = [
@@ -182,7 +181,26 @@
             path: [],
             target: null,
             speed: 5,
-            health: 100
+            health: 100,
+            range: 4
+        },
+        {
+            id: 1002,
+            unitType: 4,
+            x: 700,
+            y: 450,
+            rotation: 0,
+            gridX: 14,
+            gridY: 9,
+            gridDestX: null,
+            gridDestY: null,
+            gridSubDestX: null,
+            gridSubDestY: null,
+            path: [],
+            target: null,
+            speed: 5,
+            health: 100,
+            range: 4
         },
         {
             id: 2001,
@@ -199,7 +217,44 @@
             path: [],
             target: null,
             speed: 5,
-            health: 100
+            health: 100,
+            range: 4
+        },
+        {
+            id: 2002,
+            unitType: 7,
+            x: 450,
+            y: 750,
+            rotation: 0,
+            gridX: 9,
+            gridY: 15,
+            gridDestX: 32,
+            gridDestY: 9,
+            gridSubDestX: null,
+            gridSubDestY: null,
+            path: [],
+            target: null,
+            speed: 5,
+            health: 100,
+            range: 4
+        },
+        {
+            id: 2003,
+            unitType: 7,
+            x: 500,
+            y: 650,
+            rotation: 0,
+            gridX: 10,
+            gridY: 13,
+            gridDestX: null,
+            gridDestY: null,
+            gridSubDestX: null,
+            gridSubDestY: null,
+            path: [],
+            target: null,
+            speed: 5,
+            health: 100,
+            range: 4
         },
         {
             id: 100,
@@ -246,10 +301,11 @@
     tileHeight = 50;
 
     // set some vars to facilitate edge scrolling
-    var oldtimer = 0;
+    var oldTimer = 0;
     var edgeScrolling = false;
     var scrollDirX = 0;
     var scrollDirY = 0;
+    var edgeScrollingFlag = false; // if edgescrolling was initiated after a unit was selected, dont keep view aligned with unit
 
     // create empty grid
     var grid = createPathfindingGrid();
@@ -301,19 +357,27 @@
                 var unit = findInUnitsByGridCoordinates(newX, newY);
 
                 if(unit) {
-                    // is it an enemy unit?
                     if(unit.id >= 2000){
-                        // get the currently selected unit(s) and set its target to the enemy unit that the user clicked on
-                        // console.log('setting target');
-                        for(var ownUnit=0;ownUnit<selectedUnits.length;ownUnit++) {
-                            findUnitById(selectedUnits[ownUnit]).target = unit.id;
-                        }
-                        selectedUnits = [];
-                    } else {
+                        // it is an enemy unit
+                        setTargetForSelectedUnitsToId(unit.id);
+
                         // deselect all units
                         selectedUnits = [];
-                        // add the unit
-                        selectedUnits.push(unit.id);
+                    } else {
+                        // it is your own unit
+                        if(!findInSelectedUnitsById(unit.id)) {
+                            // deselect all units
+                            selectedUnits = [];
+
+                            // was not selected, so select it
+                            selectedUnits.push(unit.id);
+                            edgeScrollingFlag = false;
+                        } else {
+                            // deselect all units
+                            selectedUnits = [];
+                            edgeScrollingFlag = false;
+                        }
+
                     }
                 } else {
                     // not a unit. move map.
@@ -343,6 +407,12 @@
                 }
             }
 
+        }
+    }
+
+    function setTargetForSelectedUnitsToId(id){
+        for(var ownUnit=0;ownUnit<selectedUnits.length;ownUnit++) {
+            findUnitById(selectedUnits[ownUnit]).target = id;
         }
     }
 
@@ -379,6 +449,7 @@
             edgeScrolling = false;
         } else {
             edgeScrolling = true;
+            edgeScrollingFlag = true;
             scrollDirX = 0;
             scrollDirY = 0;
             if     (mouseY < 50  && mouseX > 800){scrollDirX++;scrollDirY--}
@@ -590,12 +661,23 @@
                             // recalculate path
                             var target = unit.target !== null; // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
                             unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, target);
-                            // take the first entry off the path (actually the second, first one is current position)
-                            if(unit.path.length >= 2) {
+
+                            // within attack range?
+                            if(unit.target !== null && unit.path.length < unit.range) {
+                                console.log('within reach (clear path and dest)');
+                                unit.path = [];
+                                unit.gridSubDestX = null;
+                                unit.gridSubDestY = null;
+                                unit.gridDestX = null;
+                                unit.gridDestY = null;
+                            } else if(unit.path.length >= 2) {
+                                // take the first entry off the path (actually the second, first one is current position)
                                 unit.gridSubDestX = unit.path[1][0];
                                 unit.gridSubDestY = unit.path[1][1];
                             } else {
-                                // path is blocked off by some other unit or incorrectly calculated
+                                // path is blocked off by some other unit or incorrectly calculated (could be expensive!)
+                                // console.log('looks like my gridDest is blocked, setting gridDest as the last-1 entry in path');
+                                // neh. not working coz path was calculated empty because last dest. was blocked. find some other way
                             }
                         }
                     } else {
@@ -654,11 +736,21 @@
                 } else {
                     var targetFlag = (unit.target !== null); // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
                     unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, targetFlag);
+                    if(unit.target !== null && unit.path.length < unit.range) {
+                        unit.path = [];
+                        unit.gridSubDestX = null;
+                        unit.gridSubDestY = null;
+                        unit.gridDestX = null;
+                        unit.gridDestY = null;
+                    }
                     if(unit.path.length > 1) {
                         unit.gridSubDestX = unit.path[1][0];
                         unit.gridSubDestY = unit.path[1][1];
                     } else {
-                        // cannot move right now due to blocking. will move eventually todo: implement a timeout
+                        // cannot move closer (but will keep looking if its needed) (could be expensive!)
+                        if(unit.target !== null){
+                            rotateUnitTowardsTheTarget(unit);
+                        }
                     }
                 }
             } else {
@@ -668,13 +760,50 @@
                     unit.gridDestX = targetUnit.gridX;
                     unit.gridDestY = targetUnit.gridY;
                 } else {
-                    // no target, no destination. guard mode.
+                    // no target, no destination (guard mode)
                 }
             }
 
             // update x,y for this unit
             unit.x = x;
             unit.y = y;
+        }
+    }
+
+    function rotateUnitTowardsTheTarget(unit) {
+        // ensure we always look towards the target
+        var targetUnitje = findUnitById(unit.target);
+        if(targetUnitje.gridX < unit.gridX){
+            if(targetUnitje.gridY < unit.gridY){
+                // up-left
+                unit.rotation = 315;
+            } else if(targetUnitje.gridY > unit.gridY) {
+                // down-left
+                unit.rotation = 225;
+            } else {
+                // left
+                unit.rotation = 270;
+            }
+        } else if(targetUnitje.gridX > unit.gridX) {
+            if(targetUnitje.gridY < unit.gridY){
+                // up-right
+                unit.rotation = 45;
+            } else if(targetUnitje.gridY > unit.gridY) {
+                // down-right
+                unit.rotation = 135;
+            } else {
+                // right
+                unit.rotation = 90;
+            }
+        } else {
+            // x = equal
+            if(targetUnitje.gridY < unit.gridY){
+                // up
+                unit.rotation = 0;
+            } else if(targetUnitje.gridY > unit.gridY) {
+                // down
+                unit.rotation = 180;
+            }
         }
     }
 
@@ -687,13 +816,24 @@
 
     function updateCanvas() {
         clearCanvas();
+
+        if(!edgeScrollingFlag && selectedUnits.length === 1){
+            if(posX !== findUnitById(selectedUnits[0]).gridX || posY !== findUnitById(selectedUnits[0]).gridY){
+                edgeScrollingFlag = false;
+                // if a single unit is selected and the current view positions are different, update them (follow mode)
+                // todo: there is a bug when a unit is selected that is within rangeX but at the boundaries at least
+                posX = findUnitById(selectedUnits[0]).gridX;
+                posY = findUnitById(selectedUnits[0]).gridY;
+            }
+        }
+
         drawMapSelection();
         updateUnitCoordinates();
         drawUnitsInMapSelection();
 
         // edge scrolling and its timer
-        if(Date.now()-100 > oldtimer) {
-            oldtimer = Date.now();
+        if(Date.now()-100 > oldTimer) {
+            oldTimer = Date.now();
             if (edgeScrolling) {
                 updateEdgeScroller()
             }
