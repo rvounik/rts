@@ -96,8 +96,8 @@
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 1, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 2, 2, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 6, 5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 2, 5, 1, 5, 5, 2, 2, 2, 2, 2, 2, 2, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 2, 2, 2, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 2, 2, 5, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 1, 1, 1, 5, 5, 5, 2, 2, 5, 5, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1, 1, 1, 1, 1, 5, 5, 5, 5, 5, 1, 1, 1, 1, 1 ,1 ,1 ,1 ,1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -113,8 +113,13 @@
             img: new Image()
         },
         {
-            id: 'water',
+            id: 'water-1',
             src: 'assets/tile-water.png',
+            img: new Image()
+        },
+        {
+            id: 'water-2',
+            src: 'assets/tile-water-2.png',
             img: new Image()
         },
         {
@@ -190,7 +195,7 @@
             speed: 5,
             health: 100,
             range: 4,
-            rate: 5,
+            rate: 2,
             damage: 20,
             rateTimer: 0
         },
@@ -211,7 +216,7 @@
             speed: 5,
             health: 100,
             range: 4,
-            rate: 5,
+            rate: 2,
             damage: 20,
             rateTimer: 0
         },
@@ -327,6 +332,8 @@
     // some runtime parameters
     var autoCenter = false;
     var soundEffects = false;
+
+    var oldWaterVariationTimer = 0;
 
     // trigger update function
     updateCanvas();
@@ -549,13 +556,14 @@
     function getBitmapForTileType(tileType, state = null) {
         // if 'state' is provided, append that to the bitmap id
         switch(tileType){
-            case 1: return findObjectInArrayById('water');
+            case 1: return findObjectInArrayById('water-1');
             case 2: return findObjectInArrayById('grass');
             case 100: return findObjectInArrayById('tree');
             case 4: return state === null ? findObjectInArrayById('tank') : findObjectInArrayById('tank-' + state);
             case 5: return findObjectInArrayById('sand');
             case 6: return findObjectInArrayById('bridge');
             case 7: return findObjectInArrayById('tank-enemy');
+            case 8: return findObjectInArrayById('water-2');
             default: console.log('unknown tileType provided');return false;
         }
     }
@@ -708,6 +716,9 @@
                         // not there yet. calculate translation for x, y (depending on orientation also)
                         // todo: there is a bug where a sudden change in target or gridDestX,Y results in x,y of a unit being off
                         // todo: to prevent this, when traversing x, ensure y is floored/ceiled so it never runs on a wrong axis
+
+                        unit.rateTimer = 0;
+
                         if (unit.gridSubDestX < unit.gridX) {
                             x -= unit.speed;
                             unit.rotation = 270;
@@ -761,12 +772,12 @@
                     var targetFlag = (unit.target !== null); // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
                     unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, targetFlag);
 
-                    if(unit.path.length > 1) {
+                    if (unit.path.length > 1) {
                         // if a path was calculated..
                         if (unit.target !== null) {
                             // and there is a target..
                             if (unit.path.length < unit.range) {
-                                // and the path is shorter than the range:
+                                // and the path is shorter than the range..
 
                                 // erase the path, we can shoot from here
                                 unit.path = [];
@@ -777,15 +788,16 @@
 
                                 rotateUnitTowardsTheTarget(unit);
 
-                                // do the timer thingies for shooting
+                                // do the timer thingies for shooting (needs work. the whole set up with the html element sucks)
                                 unit.rateTimer += 0.1;
                                 var flashTimeout = 0.1;
-                                if(unit.rateTimer > unit.rate && unit.rateTimer < (unit.rate+flashTimeout)) {
+                                if (unit.rateTimer > unit.rate && unit.rateTimer < (unit.rate+flashTimeout)) {
                                     if(soundEffects) {
                                         document.getElementById('tank').play(); // todo: does not handle multiple instances playing
                                     }
-                                    flash();
+                                    // flash(); // todo: only when in view, please
                                 }
+
                                 if (unit.rateTimer > unit.rate) {
                                     var shotFrameTimeout = 0.5;
                                     if (unit.rateTimer > (unit.rate + shotFrameTimeout)) {
@@ -805,6 +817,7 @@
                         }
                     } else {
                         console.log('path is too short, probably because end point is blocked. waiting.. (needs a timeout)');
+                        // todo: bug: cannot attack unit if it is closer than range
                     }
                 }
             } else {
@@ -825,24 +838,25 @@
     }
 
     function rotateUnitTowardsTheTarget(unit) {
-        // ensure we always look towards the target
-        var targetUnitje = findUnitById(unit.target);
-        if(targetUnitje.gridX < unit.gridX){
-            if(targetUnitje.gridY < unit.gridY){
+        // ensure unit is always pointed towards the target
+        var targetUnit = findUnitById(unit.target);
+
+        if (targetUnit.gridX < unit.gridX) {
+            if (targetUnit.gridY < unit.gridY) {
                 // up-left
                 unit.rotation = 315;
-            } else if(targetUnitje.gridY > unit.gridY) {
+            } else if (targetUnit.gridY > unit.gridY) {
                 // down-left
                 unit.rotation = 225;
             } else {
                 // left
                 unit.rotation = 270;
             }
-        } else if(targetUnitje.gridX > unit.gridX) {
-            if(targetUnitje.gridY < unit.gridY){
+        } else if (targetUnit.gridX > unit.gridX) {
+            if (targetUnit.gridY < unit.gridY) {
                 // up-right
                 unit.rotation = 45;
-            } else if(targetUnitje.gridY > unit.gridY) {
+            } else if (targetUnit.gridY > unit.gridY) {
                 // down-right
                 unit.rotation = 135;
             } else {
@@ -851,10 +865,10 @@
             }
         } else {
             // x = equal
-            if(targetUnitje.gridY < unit.gridY){
+            if (targetUnit.gridY < unit.gridY) {
                 // up
                 unit.rotation = 0;
-            } else if(targetUnitje.gridY > unit.gridY) {
+            } else if (targetUnit.gridY > unit.gridY) {
                 // down
                 unit.rotation = 180;
             }
@@ -871,11 +885,12 @@
     function updateCanvas() {
         clearCanvas();
 
+        // this is controlled by autoCenter flag. not sure if going to keep since it is not very smooth
         if(!edgeScrollingFlag && selectedUnits.length === 1){
+            // if a single unit is selected and the current view positions are different, update them (follow mode)
             if(posX !== findUnitById(selectedUnits[0]).gridX || posY !== findUnitById(selectedUnits[0]).gridY){
                 edgeScrollingFlag = false;
-                // if a single unit is selected and the current view positions are different, update them (follow mode)
-                if(autoCenter) {
+                if (autoCenter) {
                     posX = findUnitById(selectedUnits[0]).gridX;
                     posY = findUnitById(selectedUnits[0]).gridY;
                 }
@@ -891,6 +906,21 @@
             oldTimer = Date.now();
             if (edgeScrolling) {
                 updateEdgeScroller()
+            }
+        }
+
+        if(Date.now()-2000 > oldWaterVariationTimer) {
+            oldWaterVariationTimer = Date.now();
+            // looping through all 1 in the map and replacing some with 8. likewise, all existing 8 are back to 1 again
+            for(var a=0;a<map.length;a++){
+                for(var b=0;b<map[a].length;b++){
+                    if(map[a][b] === 8) {
+                        map[a][b] = 1;
+                    }
+                    if(map[a][b] === 1 && (parseInt(Math.random() * 50) === 1)) {
+                        map[a][b] = 8;
+                    }
+                }
             }
         }
 
