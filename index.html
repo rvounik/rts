@@ -107,6 +107,28 @@
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     ];
 
+    var tempArray = [];
+    var shadowMapX;
+    var shadowMapY;
+
+    var playerShadowMap = [];
+    for (shadowMapY = 0; shadowMapY < map.length; shadowMapY ++) {
+        tempArray = [];
+        for (shadowMapX = 0; shadowMapX < map[0].length; shadowMapX ++) {
+            tempArray.push(0);
+        }
+        playerShadowMap.push(tempArray);
+    }
+
+    var enemyShadowMap = [];
+    for (shadowMapY = 0; shadowMapY < map.length; shadowMapY ++){
+        tempArray = [];
+        for (shadowMapX = 0; shadowMapX < map[0].length; shadowMapX ++) {
+            tempArray.push(0);
+        }
+        enemyShadowMap.push(tempArray);
+    }
+
     // define image assets todo: rename
     var bitmaps = [
         {
@@ -175,7 +197,7 @@
             unitType: 4,
             x: 450,
             y: 450,
-            rotation: 0,
+            rotation: 90,
             gridX: 9,
             gridY: 9,
             gridDestX: null,
@@ -186,7 +208,7 @@
             target: null,
             speed: 5,
             health: 100,
-            range: 4,
+            range: 3,
             rate: 2,
             damage: 20,
             rateTimer: 0,
@@ -195,11 +217,11 @@
         {
             id: 1002,
             unitType: 4,
-            x: 700,
-            y: 450,
-            rotation: 0,
-            gridX: 14,
-            gridY: 9,
+            x: 450,
+            y: 500,
+            rotation: 90,
+            gridX: 9,
+            gridY: 10,
             gridDestX: null,
             gridDestY: null,
             gridSubDestX: null,
@@ -208,7 +230,7 @@
             target: null,
             speed: 5,
             health: 100,
-            range: 4,
+            range: 3,
             rate: 2,
             damage: 20,
             rateTimer: 0,
@@ -336,6 +358,11 @@
         }
     ];
 
+    // loop through units to fill shadowmaps initially
+    for (var unitI = 0; unitI < units.length; unitI ++) {
+        updateShadowMapForUnit(units[unitI]);
+    }
+
     // keeps track of units selected by the user. much faster than querying units array.
     var selectedUnits = [];
 
@@ -405,7 +432,7 @@
         var offsetLeft = document.getElementById("canvas").offsetLeft;
         var offsetTop = document.getElementById("canvas").offsetTop;
 
-        // get clicked coordinates relative to grid
+        // get coordinates relative to grid
         var mouseX = event.clientX - offsetLeft;
         var mouseY = event.clientY - offsetTop;
 
@@ -495,7 +522,7 @@
         var offsetLeft = document.getElementById("canvas").offsetLeft;
         var offsetTop = document.getElementById("canvas").offsetTop;
 
-        // get clicked coordinates relative to grid
+        // get coordinates relative to grid
         var mouseX = event.clientX - offsetLeft;
         var mouseY = event.clientY - offsetTop;
 
@@ -516,7 +543,6 @@
             else if (mouseY < 25){scrollDirY--}
         }
     }
-
 
     function setTargetForSelectedUnitsToId(id){
         for (var unitToHaveTarget = 0; unitToHaveTarget < selectedUnits.length; unitToHaveTarget ++) {
@@ -595,16 +621,15 @@
     }
 
     function drawMapSelection() {
-        if (areAllImageAssetsLoaded) {
-            // draw all grid units that are within view
-            for (var row = 0; row <= (2 * rangeY); row++) {
-                var tileY = posY - (rangeY); // range is -6 to 6 with 0 being middle or equal to posY
-                tileY += row;
-                for (var col = 0; col <= (2 * rangeX); col++) {
-                    var tileX = posX - (rangeX);
-                    tileX += col;
-                    drawBackgroundTile(col * tileWidth, row * tileHeight, map[tileY][tileX]);
-                }
+        // draw all grid units that are within view
+        for (var row = 0; row <= (2 * rangeY); row++) {
+            var tileY = posY - rangeY; // range is -6 to 6 with 0 being middle or equal to posY
+            tileY += row;
+            for (var col = 0; col <= (2 * rangeX); col++) {
+                var tileX = posX - rangeX;
+                tileX += col;
+                    var alpha = playerShadowMap[tileY][tileX];
+                    drawBackgroundTile(col * tileWidth, row * tileHeight, map[tileY][tileX], alpha);
             }
         }
     }
@@ -641,9 +666,11 @@
         }
     }
 
-    function drawBackgroundTile(x, y, tileType) {
+    function drawBackgroundTile(x, y, tileType, alpha) {
         var imageId = getBitmapForTileType(tileType);
+        context.globalAlpha = alpha;
         context.drawImage(imageId['img'], x, y);
+        context.globalAlpha = 1;
     }
 
     function moveUnitToPosition(unitId, newGridX, newGridY){
@@ -654,23 +681,96 @@
         unitToBeMoved.gridDestY = newGridY;
     }
 
-    function drawUnit(x, y, rotation = 0, unit) {
+    function drawUnit(x, y, rotation = 0, unit, alpha) {
         var state = null;
         if (unit.rateTimer > unit.rate) {
             state = 'shot';
         }
         // note that the given x, y are already adjusted to fit the current view
         var imageId = getBitmapForTileType(unit.unitType, state);
+        context.globalAlpha = alpha;
         context.save();
         context.translate(x + (tileWidth / 2), y + (tileHeight / 2)); // move canvas to spawn / pivoting position
         context.rotate(rotation * Math.PI / 180); // rotate to given value in radians
         context.drawImage(imageId['img'], 0 - (tileWidth / 2), 0 - (tileHeight / 2));
         context.restore();
+        context.globalAlpha = 1;
 
         // selection caret
         context.strokeStyle = "#333";
         context.lineWidth = 2;
         if (findInSelectedUnitsById(unit.id)){context.strokeRect(x, y, tileWidth, tileHeight)}
+    }
+
+    function updateShadowMapForUnit(unit) {
+        if (unit.id >= 1000 && unit.id < 2000){
+            playerShadowMap[unit.gridY -3][unit.gridX] = (playerShadowMap[unit.gridY - 3][unit.gridX] === 1) ? 1 : .5;
+
+            playerShadowMap[unit.gridY -2][unit.gridX - 1] = (playerShadowMap[unit.gridY - 2][unit.gridX - 1] === 1) ? 1 : .5;
+            playerShadowMap[unit.gridY -2][unit.gridX] = 1;
+            playerShadowMap[unit.gridY -2][unit.gridX + 1] = (playerShadowMap[unit.gridY - 2][unit.gridX + 1] === 1) ? 1 : .5;
+
+            playerShadowMap[unit.gridY -1][unit.gridX - 2] = (playerShadowMap[unit.gridY - 1][unit.gridX - 2] === 1) ? 1 : .5;
+            playerShadowMap[unit.gridY -1][unit.gridX - 1] = 1;
+            playerShadowMap[unit.gridY -1][unit.gridX] = 1;
+            playerShadowMap[unit.gridY -1][unit.gridX + 1] = 1;
+            playerShadowMap[unit.gridY -1][unit.gridX + 2] = (playerShadowMap[unit.gridY - 1][unit.gridX + 2] === 1) ? 1 : .5;
+
+            playerShadowMap[unit.gridY][unit.gridX - 3] = (playerShadowMap[unit.gridY][unit.gridX - 3] === 1) ? 1 : .5;
+            playerShadowMap[unit.gridY][unit.gridX - 2] = 1;
+            playerShadowMap[unit.gridY][unit.gridX - 1] = 1;
+            playerShadowMap[unit.gridY][unit.gridX] = 1;
+            playerShadowMap[unit.gridY][unit.gridX + 1] = 1;
+            playerShadowMap[unit.gridY][unit.gridX + 2] = 1;
+            playerShadowMap[unit.gridY][unit.gridX + 3] = (playerShadowMap[unit.gridY][unit.gridX + 3] === 1) ? 1 : .5;
+
+            playerShadowMap[unit.gridY + 1][unit.gridX -2] = (playerShadowMap[unit.gridY + 1][unit.gridX - 2] === 1) ? 1 : .5;
+            playerShadowMap[unit.gridY + 1][unit.gridX - 1] = 1;
+            playerShadowMap[unit.gridY + 1][unit.gridX] = 1;
+            playerShadowMap[unit.gridY + 1][unit.gridX + 1] = 1;
+            playerShadowMap[unit.gridY + 1][unit.gridX + 2] = (playerShadowMap[unit.gridY + 1][unit.gridX + 2] === 1) ? 1 : .5;
+
+            playerShadowMap[unit.gridY + 2][unit.gridX -1] = 1;
+            playerShadowMap[unit.gridY + 2][unit.gridX] = 1;
+            playerShadowMap[unit.gridY + 2][unit.gridX + 1] = 1;
+
+            playerShadowMap[unit.gridY + 3][unit.gridX] = (playerShadowMap[unit.gridY + 3][unit.gridX] === 1) ? 1 : .5;
+
+        } else if(unit.id > 2000) {
+            // note there is no fancy opacity stuff going on here since its not visible
+            enemyShadowMap[unit.gridY -3][unit.gridX] = 1;
+
+            enemyShadowMap[unit.gridY -2][unit.gridX - 1] = 1;
+            enemyShadowMap[unit.gridY -2][unit.gridX] = 1;
+            enemyShadowMap[unit.gridY -2][unit.gridX + 1] = 1;
+
+            enemyShadowMap[unit.gridY -1][unit.gridX - 2] = 1;
+            enemyShadowMap[unit.gridY -1][unit.gridX - 1] = 1;
+            enemyShadowMap[unit.gridY -1][unit.gridX] = 1;
+            enemyShadowMap[unit.gridY -1][unit.gridX + 1] = 1;
+            enemyShadowMap[unit.gridY -1][unit.gridX + 2] = 1;
+
+            enemyShadowMap[unit.gridY][unit.gridX - 3] = 1;
+            enemyShadowMap[unit.gridY][unit.gridX - 2] = 1;
+            enemyShadowMap[unit.gridY][unit.gridX - 1] = 1;
+            enemyShadowMap[unit.gridY][unit.gridX] = 1;
+            enemyShadowMap[unit.gridY][unit.gridX + 1] = 1;
+            enemyShadowMap[unit.gridY][unit.gridX + 2] = 1;
+            enemyShadowMap[unit.gridY][unit.gridX + 3] = 1;
+
+            enemyShadowMap[unit.gridY + 1][unit.gridX -2] = 1;
+            enemyShadowMap[unit.gridY + 1][unit.gridX - 1] = 1;
+            enemyShadowMap[unit.gridY + 1][unit.gridX] = 1;
+            enemyShadowMap[unit.gridY + 1][unit.gridX + 1] = 1;
+            enemyShadowMap[unit.gridY + 1][unit.gridX + 2] = 1;
+
+            enemyShadowMap[unit.gridY + 2][unit.gridX -1] = 1;
+            enemyShadowMap[unit.gridY + 2][unit.gridX] = 1;
+            enemyShadowMap[unit.gridY + 2][unit.gridX + 1] = 1;
+
+            enemyShadowMap[unit.gridY + 3][unit.gridX] = 1;
+        }
+
 
     }
 
@@ -682,7 +782,8 @@
             var rotation = units[a].rotation;
             if (relX >= 0 && relX < 850 && relY >= 0 && relY < 650){
                 // if in view, draw the unit
-                drawUnit(relX, relY, rotation, units[a]);
+                var alpha = playerShadowMap[units[a].gridY][units[a].gridX];
+                drawUnit(relX, relY, rotation, units[a], alpha);
             }
         }
     }
@@ -712,7 +813,6 @@
 
         // do the timer thingies for shooting
         unit.rateTimer += 0.1;
-        //console.log('increment');
 
         if (unit.rateTimer > unit.rate) {
             // note that the changing of the tile to a 'shooting tile' is done by reading out rateTimer in drawUnit
@@ -722,23 +822,22 @@
             // ensure rateTimer eventually times out
             if (unit.rateTimer > (unit.rate + shotFrameTimeout)) {
                 unit.rateTimer = 0;
-                //console.log('reset')
             }
         }
     }
 
     function updateUnitCoordinates() {
-        for(var c = 0; c < units.length; c ++) {
+        for (var c = 0; c < units.length; c ++) {
             var unit = units[c];
             var x = unit.x;
             var y = unit.y;
 
-            // first, check if gridDestX,Y still matches the target's X,Y. if not, update (chase mode)
+            // first, check if gridDestX,Y still matches the target's X,Y
             if (unit.target){
                 var targetX = findUnitById(unit.target).gridX;
                 var targetY = findUnitById(unit.target).gridY;
                 if (unit.gridDestX !== targetX || unit.gridDestY !== targetY) {
-                    // console.log('chasing target');
+                    // chasing target
                     unit.gridDestX = null;
                     unit.gridDestY = null;
                     unit.gridSubDestX = null;
@@ -755,6 +854,9 @@
                         // console.log('reached sub destination ' + unit.gridSubDestX + ',' + unit.gridSubDestY);
                         unit.gridSubDestX = null;
                         unit.gridSubDestY = null;
+
+                        updateShadowMapForUnit(unit);
+
                         // is final target reached?
                         if (unit.gridX === unit.gridDestX && unit.gridY === unit.gridDestY) {
                             // reached final destination
