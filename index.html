@@ -151,6 +151,11 @@
             id: 'tank-shot',
             src: 'assets/tile-tank-shot.png',
             img: new Image()
+        },
+        {
+            id: 'rock',
+            src: 'assets/tile-rock.png',
+            img: new Image()
         }
     ];
 
@@ -284,7 +289,7 @@
             health: 100
         },
         {
-            id: 100,
+            id: 101,
             unitType: 100,
             x: 900,
             y: 450,
@@ -293,12 +298,48 @@
             health: 100
         },
         {
-            id: 100,
+            id: 102,
             unitType: 100,
             x: 850,
             y: 500,
             gridX: 17,
             gridY: 10,
+            health: 100
+        },
+        {
+            id: 103,
+            unitType: 101,
+            x: 1650,
+            y: 700,
+            gridX: 33,
+            gridY: 14,
+            health: 100
+        },
+        {
+            id: 104,
+            unitType: 101,
+            x: 1650,
+            y: 750,
+            gridX: 33,
+            gridY: 15,
+            health: 100
+        },
+        {
+            id: 105,
+            unitType: 101,
+            x: 1600,
+            y: 750,
+            gridX: 32,
+            gridY: 15,
+            health: 100
+        },
+        {
+            id: 105,
+            unitType: 101,
+            x: 1550,
+            y: 750,
+            gridX: 30,
+            gridY: 15,
             health: 100
         }
     ];
@@ -331,7 +372,7 @@
 
     // some runtime parameters
     var autoCenter = false;
-    var soundEffects = false;
+    var soundEffects = true;
 
     var oldWaterVariationTimer = 0;
 
@@ -559,6 +600,7 @@
             case 1: return findObjectInArrayById('water-1');
             case 2: return findObjectInArrayById('grass');
             case 100: return findObjectInArrayById('tree');
+            case 101: return findObjectInArrayById('rock');
             case 4: return state === null ? findObjectInArrayById('tank') : findObjectInArrayById('tank-' + state);
             case 5: return findObjectInArrayById('sand');
             case 6: return findObjectInArrayById('bridge');
@@ -917,7 +959,7 @@
                     if(map[a][b] === 8) {
                         map[a][b] = 1;
                     }
-                    if(map[a][b] === 1 && (parseInt(Math.random() * 50) === 1)) {
+                    if(map[a][b] === 1 && (parseInt(Math.random() * 250) === 1)) {
                         map[a][b] = 8;
                     }
                 }
