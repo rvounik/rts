@@ -66,7 +66,6 @@
 </div>
 
 <audio id="music-level-1" src="assets/music-level-1.mp3" preload="auto" loop></audio>
-<audio id="tank" src="assets/tank.wav" preload="auto"></audio>
 
 <script type="text/javascript" src="pathfinding-browser.min.js"></script>
 
@@ -479,6 +478,12 @@
                             // was not selected, so select it
                             selectedUnits.push(unit.id);
                             edgeScrollingFlag = false;
+
+                            var audio = new Audio();
+                            if (parseInt(Math.random() * 1) === 0) {audio.src = "assets/sound-yes.mp3"}
+                            if (parseInt(Math.random() * 2) === 1) {audio.src = "assets/sound-orders.mp3"}
+                            audio.play();
+
                         } else {
                             // deselect all units
                             selectedUnits = [];
@@ -500,6 +505,12 @@
                         var selectedUnitId = selectedUnits[a];
                         // console.log('moving unit '+selectedUnitId+' to coordinates '+newX+','+newY+' which has id '+map[newY][newX]);
                         moveUnitToPosition(selectedUnitId, newX, newY);
+
+                        var audio = new Audio();
+                        if (parseInt(Math.random() * 1) === 0) {audio.src = "assets/sound-moving.mp3"}
+                        if (parseInt(Math.random() * 2) === 1) {audio.src = "assets/sound-okay.mp3"}
+                        audio.play();
+
                         // clear all targets of selected units
                         // clearing targets
                         for (var ownUnit = 0; ownUnit < selectedUnits.length; ownUnit ++) {
@@ -548,6 +559,10 @@
         for (var unitToHaveTarget = 0; unitToHaveTarget < selectedUnits.length; unitToHaveTarget ++) {
             findUnitById(selectedUnits[unitToHaveTarget]).target = id;
         }
+
+        var audio = new Audio();
+        audio.src = "assets/sound-attacking.mp3";
+        audio.play();
     }
 
     function setNewMapCoordinates(x, y) {
@@ -817,7 +832,10 @@
         if (unit.rateTimer > unit.rate) {
             // note that the changing of the tile to a 'shooting tile' is done by reading out rateTimer in drawUnit
             if (soundEffects) {
-                document.getElementById('tank').play(); // todo: does not handle multiple instances playing
+                
+                var audio = new Audio();
+                audio.src = "assets/tank.wav";
+                audio.play()
             }
             // ensure rateTimer eventually times out
             if (unit.rateTimer > (unit.rate + shotFrameTimeout)) {
