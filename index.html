@@ -170,7 +170,7 @@
     });
 
     function allAssetsLoaded() {
-        for (var bitmap=0;bitmap<bitmaps.length;bitmap++) {
+        for (var bitmap = 0;bitmap < bitmaps.length; bitmap ++) {
             if (bitmap.img.naturalWidth === 0) {
                 return false;
             }
@@ -359,22 +359,23 @@
     tileWidth = 50;
     tileHeight = 50;
 
-    // set some vars to facilitate edge scrolling
-    var oldTimer = 0;
+    // facilitates edge scrolling
+    var edgeScrollingTimer = 0;
     var edgeScrolling = false;
+    var edgeScrollingFlag = false; // keeps track of active edgeScrolling to prevent view being aligned with unit
     var scrollDirX = 0;
     var scrollDirY = 0;
-    var edgeScrollingFlag = false; // if edgescrolling was initiated after a unit was selected, dont keep view aligned with unit
 
-    // create empty grid
-    var grid = createPathfindingGrid();
-    var finder = new PF.AStarFinder();
+    // facilitates water variation
+    var waterVariationTimer = 0;
 
     // some runtime parameters
     var autoCenter = false;
     var soundEffects = true;
 
-    var oldWaterVariationTimer = 0;
+    // create empty grid
+    var grid = createPathfindingGrid();
+    var finder = new PF.AStarFinder();
 
     // trigger update function
     updateCanvas();
@@ -394,7 +395,7 @@
         var mouseY = event.clientY - offsetTop;
 
         // ensure user clicked within bounds
-        if(mouseX < 0 || mouseX > 850 || mouseY < 0 || mouseY > 650) {
+        if (mouseX < 0 || mouseX > 850 || mouseY < 0 || mouseY > 650) {
             console.log('out of bounds');
         } else {
             // get value of grid that is at that position
@@ -416,12 +417,12 @@
             }
 
             // see if a unit lives at that position
-            if(!grid.isWalkableAt(newX, newY)){
+            if (!grid.isWalkableAt(newX, newY)){
                 // something is there. is it a unit?
                 var unit = findInUnitsByGridCoordinates(newX, newY);
 
-                if(unit) {
-                    if(unit.id >= 2000){
+                if (unit) {
+                    if (unit.id >= 2000){
                         // it is an enemy unit
                         setTargetForSelectedUnitsToId(unit.id);
 
@@ -429,7 +430,7 @@
                         selectedUnits = [];
                     } else {
                         // it is your own unit
-                        if(!findInSelectedUnitsById(unit.id)) {
+                        if (!findInSelectedUnitsById(unit.id)) {
                             // deselect all units
                             selectedUnits = [];
 
@@ -549,7 +550,7 @@
             var y = units[c].gridY;
             grid.setWalkableAt(x, y, false);
             // destination grid position
-            if(units[c].gridSubDestX && units[c].gridSubDestY) {
+            if (units[c].gridSubDestX && units[c].gridSubDestY) {
                 var x2 = units[c].gridSubDestX;
                 var y2 = units[c].gridSubDestY;
                 grid.setWalkableAt(x2, y2, false);
@@ -560,8 +561,8 @@
     }
 
     function findInSelectedUnitsById(id) {
-        for(var a=0;a<selectedUnits.length;a++){
-            if(selectedUnits[a] === id) {
+        for (var selectedUnit = 0; selectedUnit < selectedUnits.length; selectedUnit ++){
+            if (selectedUnits[selectedUnit] === id) {
                 return true;
             }
         }
@@ -569,10 +570,10 @@
         return false;
     }
 
-    function findInUnitsByGridCoordinates(x,y) {
-        for(var a=0;a<units.length;a++){
-            if(x === units[a].gridX && y === units[a].gridY && units[a].id >= 1000) {
-                return units[a];
+    function findInUnitsByGridCoordinates(x, y) {
+        for (var unit = 0; unit < units.length; unit ++){
+            if (x === units[unit].gridX && y === units[unit].gridY && units[unit].id >= 1000) {
+                return units[unit];
             }
         }
 
@@ -580,7 +581,7 @@
     }
 
     function drawMapSelection() {
-        if(allAssetsLoaded) {
+        if (allAssetsLoaded) {
             // draw all grid units that are within view
             for (var row = 0; row <= (2 * rangeY); row++) {
                 var tileY = posY - (rangeY); // range is -6 to 6 with 0 being middle or equal to posY
@@ -595,23 +596,23 @@
     }
 
     function getBitmapForTileType(tileType, state = null) {
-        // if 'state' is provided, append that to the bitmap id
-        switch(tileType){
-            case 1: return findObjectInArrayById('water-1');
-            case 2: return findObjectInArrayById('grass');
-            case 100: return findObjectInArrayById('tree');
-            case 101: return findObjectInArrayById('rock');
-            case 4: return state === null ? findObjectInArrayById('tank') : findObjectInArrayById('tank-' + state);
-            case 5: return findObjectInArrayById('sand');
-            case 6: return findObjectInArrayById('bridge');
-            case 7: return findObjectInArrayById('tank-enemy');
-            case 8: return findObjectInArrayById('water-2');
+        // if 'state' was provided, append that to the bitmap id. easy way to implement animation and alternative tiles
+        switch (tileType){
+            case 1: return findImageObjectInArrayById('water-1');
+            case 2: return findImageObjectInArrayById('grass');
+            case 100: return findImageObjectInArrayById('tree');
+            case 101: return findImageObjectInArrayById('rock');
+            case 4: return state === null ? findImageObjectInArrayById('tank') : findImageObjectInArrayById('tank-' + state);
+            case 5: return findImageObjectInArrayById('sand');
+            case 6: return findImageObjectInArrayById('bridge');
+            case 7: return findImageObjectInArrayById('tank-enemy');
+            case 8: return findImageObjectInArrayById('water-2');
             default: console.log('unknown tileType provided');return false;
         }
     }
 
-    function findObjectInArrayById(id){
-        for(var imageObject=0;imageObject<bitmaps.length;imageObject++){
+    function findImageObjectInArrayById(id){
+        for (var imageObject = 0; imageObject < bitmaps.length; imageObject ++){
             if (bitmaps[imageObject]['id'] === id) {
                 return bitmaps[imageObject];
             }
@@ -619,7 +620,7 @@
     }
 
     function findUnitById(id) {
-        for(var unit=0;unit<units.length;unit++){
+        for (var unit = 0; unit < units.length; unit ++){
             if (units[unit]['id'] === id) {
                 return units[unit];
             }
@@ -633,12 +634,10 @@
 
     function moveUnitToPosition(unitId, newGridX, newGridY){
         // simply saves new grid position for a unit
-        for(var c = 0; c < units.length; c ++) {
-            if(units[c].id === unitId) {
-                units[c].gridDestX = newGridX;
-                units[c].gridDestY = newGridY;
-            }
-        }
+        var unitToBeMoved = findUnitById(unitId);
+
+        unitToBeMoved.gridDestX = newGridX;
+        unitToBeMoved.gridDestY = newGridY;
     }
 
     function drawUnit(x, y, rotation = 0, unit) {
@@ -695,16 +694,16 @@
     }
 
     function updateUnitCoordinates() {
-        for(var c=0;c<units.length;c++) {
+        for(var c = 0; c < units.length; c ++) {
             var unit = units[c];
             var x = unit.x;
             var y = unit.y;
 
             // first, check if gridDestX,Y still matches the target's X,Y. if not, update (chase mode)
-            if(unit.target){
+            if (unit.target){
                 var targetX = findUnitById(unit.target).gridX;
                 var targetY = findUnitById(unit.target).gridY;
-                if(unit.gridDestX !== targetX || unit.gridDestY !== targetY) {
+                if (unit.gridDestX !== targetX || unit.gridDestY !== targetY) {
                     // console.log('chasing target');
                     unit.gridDestX = null;
                     unit.gridDestY = null;
@@ -737,21 +736,21 @@
                             unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, target);
 
                             // within attack range?
-                            if(unit.target !== null && unit.path.length < unit.range) {
+                            if (unit.target !== null && unit.path.length < unit.range) {
                                 // within reach (clear path and dest
                                 unit.path = [];
                                 unit.gridSubDestX = null;
                                 unit.gridSubDestY = null;
                                 unit.gridDestX = null;
                                 unit.gridDestY = null;
-                            } else if(unit.path.length >= 2) {
+                            } else if (unit.path.length >= 2) {
                                 // take the first entry off the path (actually the second, first one is current position)
                                 unit.gridSubDestX = unit.path[1][0];
                                 unit.gridSubDestY = unit.path[1][1];
                             } else {
                                 // path is blocked off by some other unit or incorrectly calculated (could be expensive!)
                                 // console.log('looks like my gridDest is blocked, setting gridDest as the last-1 entry in path');
-                                // neh. not working coz path was calculated empty because last dest. was blocked. find some other way
+                                // todo: not working coz path was calculated empty because last dest. was blocked. find some other way
                             }
                         }
                     } else {
@@ -768,9 +767,9 @@
                             if (x <= ((unit.gridX - 1) * tileWidth)) {
                                 x = ((unit.gridX - 1) * tileWidth);
                                 // just before changing grid position for this unit, update the grid with a walkable = true at the old position
-                                grid.setWalkableAt(unit.gridX,unit.gridY, true);
-                                unit.gridX--;
-                                grid.setWalkableAt(unit.gridX,unit.gridY, false); // and reserve the new tile
+                                grid.setWalkableAt(unit.gridX, unit.gridY, true);
+                                unit.gridX --;
+                                grid.setWalkableAt(unit.gridX, unit.gridY, false); // and reserve the new tile
                             }
                         }
                         else if (unit.gridSubDestX > unit.gridX) {
@@ -780,9 +779,9 @@
                             if (x >= ((unit.gridX + 1) * tileWidth)) {
                                 x = ((unit.gridX + 1) * tileWidth);
                                 // just before changing grid position for this unit, update the grid with a walkable = true at the old position
-                                grid.setWalkableAt(unit.gridX,unit.gridY, true);
-                                unit.gridX++;
-                                grid.setWalkableAt(unit.gridX,unit.gridY, false); // and reserve the new tile
+                                grid.setWalkableAt(unit.gridX, unit.gridY, true);
+                                unit.gridX ++;
+                                grid.setWalkableAt(unit.gridX, unit.gridY, false); // and reserve the new tile
                             }
                         }
                         else if (unit.gridSubDestY < unit.gridY) {
@@ -792,9 +791,9 @@
                             if (y <= ((unit.gridY - 1) * tileWidth)) {
                                 y = ((unit.gridY - 1) * tileHeight);
                                 // just before changing grid position for this unit, update the grid with a walkable = true at the old position
-                                grid.setWalkableAt(unit.gridX,unit.gridY, true);
-                                unit.gridY--;
-                                grid.setWalkableAt(unit.gridX,unit.gridY, false); // and reserve the new tile
+                                grid.setWalkableAt(unit.gridX, unit.gridY, true);
+                                unit.gridY --;
+                                grid.setWalkableAt(unit.gridX, unit.gridY, false); // and reserve the new tile
                             }
                         }
                         else if (unit.gridSubDestY > unit.gridY) {
@@ -804,9 +803,9 @@
                             if (y >= ((unit.gridY + 1) * tileHeight)) {
                                 y = ((unit.gridY + 1) * tileHeight);
                                 // just before changing grid position for this unit, update the grid with a walkable = true at the old position
-                                grid.setWalkableAt(unit.gridX,unit.gridY, true);
-                                unit.gridY++;
-                                grid.setWalkableAt(unit.gridX,unit.gridY, false); // and reserve the new tile
+                                grid.setWalkableAt(unit.gridX, unit.gridY, true);
+                                unit.gridY ++;
+                                grid.setWalkableAt(unit.gridX, unit.gridY, false); // and reserve the new tile
                             }
                         }
                     }
@@ -834,7 +833,7 @@
                                 unit.rateTimer += 0.1;
                                 var flashTimeout = 0.1;
                                 if (unit.rateTimer > unit.rate && unit.rateTimer < (unit.rate+flashTimeout)) {
-                                    if(soundEffects) {
+                                    if (soundEffects) {
                                         document.getElementById('tank').play(); // todo: does not handle multiple instances playing
                                     }
                                     // flash(); // todo: only when in view, please
@@ -864,7 +863,7 @@
                 }
             } else {
                 // no gridDestX,Y set for this unit, does it have a target?
-                if(unit.id >= 1000 && unit.target !== null) {
+                if (unit.id >= 1000 && unit.target !== null) {
                     var targetUnit = findUnitById(unit.target);
                     unit.gridDestX = targetUnit.gridX;
                     unit.gridDestY = targetUnit.gridY;
@@ -918,9 +917,9 @@
     }
 
     function updateEdgeScroller() {
-        if(edgeScrolling) {
-            if(posX+scrollDirX > rangeX && posX+scrollDirX < (map[0].length-rangeX)) {posX += scrollDirX}
-            if(posY+scrollDirY > rangeY && posY+scrollDirY < (map.length-rangeY)) {posY += scrollDirY}
+        if (edgeScrolling) {
+            if (posX+scrollDirX > rangeX && posX+scrollDirX < (map[0].length - rangeX)) {posX += scrollDirX}
+            if (posY+scrollDirY > rangeY && posY+scrollDirY < (map.length - rangeY)) {posY += scrollDirY}
         }
     }
 
@@ -928,9 +927,9 @@
         clearCanvas();
 
         // this is controlled by autoCenter flag. not sure if going to keep since it is not very smooth
-        if(!edgeScrollingFlag && selectedUnits.length === 1){
+        if (!edgeScrollingFlag && selectedUnits.length === 1){
             // if a single unit is selected and the current view positions are different, update them (follow mode)
-            if(posX !== findUnitById(selectedUnits[0]).gridX || posY !== findUnitById(selectedUnits[0]).gridY){
+            if (posX !== findUnitById(selectedUnits[0]).gridX || posY !== findUnitById(selectedUnits[0]).gridY){
                 edgeScrollingFlag = false;
                 if (autoCenter) {
                     posX = findUnitById(selectedUnits[0]).gridX;
@@ -944,22 +943,22 @@
         drawUnitsInMapSelection();
 
         // edge scrolling and its timer
-        if(Date.now()-100 > oldTimer) {
-            oldTimer = Date.now();
+        if (Date.now() - 100 > edgeScrollingTimer) {
+            edgeScrollingTimer = Date.now();
             if (edgeScrolling) {
                 updateEdgeScroller()
             }
         }
 
-        if(Date.now()-2000 > oldWaterVariationTimer) {
-            oldWaterVariationTimer = Date.now();
+        if (Date.now() - 2000 > waterVariationTimer) {
+            waterVariationTimer = Date.now();
             // looping through all 1 in the map and replacing some with 8. likewise, all existing 8 are back to 1 again
-            for(var a=0;a<map.length;a++){
-                for(var b=0;b<map[a].length;b++){
-                    if(map[a][b] === 8) {
+            for (var a = 0; a < map.length; a ++){
+                for(var b = 0; b < map[a].length;b ++){
+                    if (map[a][b] === 8) {
                         map[a][b] = 1;
                     }
-                    if(map[a][b] === 1 && (parseInt(Math.random() * 250) === 1)) {
+                    if (map[a][b] === 1 && (parseInt(Math.random() * 250) === 1)) {
                         map[a][b] = 8;
                     }
                 }
