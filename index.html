@@ -128,8 +128,8 @@
         enemyShadowMap.push(tempArray);
     }
 
-    // define image assets todo: rename
-    var bitmaps = [
+    // define image assets
+    var images = [
         {
             id: 'grass',
             src: 'assets/tile-grass.png',
@@ -183,7 +183,7 @@
     ];
 
     // call the loadBitmap function for each defined bitmap
-    bitmaps.map(bitmap => {
+    images.map(bitmap => {
        loadBitmap(bitmap);
     });
 
@@ -351,7 +351,7 @@
             unitType: 101,
             x: 1550,
             y: 750,
-            gridX: 30,
+            gridX: 31,
             gridY: 15,
             health: 100
         }
@@ -370,8 +370,8 @@
     var rangeY = 6;
 
     // map start position (do not make it lower than rangeX, rangeY or higher than array size - range)
-    var posX = 8;
-    var posY = 6;
+    var posX = 12;
+    var posY = 9;
 
     // dimensions of tile
     tileWidth = 50;
@@ -389,21 +389,26 @@
 
     // determines timeout for the frame showing a unit shooting
     var shotFrameTimeout = 0.5;
+    var shotsFired = false;
 
-    // some runtime parameters
-    var autoCenter = false;
-    var soundEffects = true;
+    // ensures spotted enemies are not spotted twice
+    spottedEnemiesArray = [];
 
+    // facilitates (pre)loading
     var assetsLoaded = false;
     var loadingAsset;
 
     // create empty grid
     var grid = createPathfindingGrid();
-    var finder = new PF.AStarFinder();
+    var finder = new PF.DijkstraFinder();
+
+    // some runtime parameters
+    var autoCenter = false;
+    var soundEffects = true;
+    var debug = false;
 
     // trigger update function
     updateCanvas();
-    //updateEdgeScroller();
 
     /***************************** functions *******************************/
 
@@ -413,10 +418,10 @@
     }
 
     function areAllImageAssetsLoaded() {
-        for (var loadedBitmap = 0; loadedBitmap < bitmaps.length; loadedBitmap ++) {
-            if (bitmaps[loadedBitmap] && bitmaps[loadedBitmap].img.naturalWidth > 0) {
+        for (var loadedBitmap = 0; loadedBitmap < images.length; loadedBitmap ++) {
+            if (images[loadedBitmap] && images[loadedBitmap].img.naturalWidth > 0) {
             } else {
-                loadingAsset = bitmaps[loadedBitmap].src;
+                loadingAsset = images[loadedBitmap].src;
                 return false;
             }
         }
@@ -425,18 +430,18 @@
     }
 
     function clickHandler(event) {
-        // todo: handler does not take scaling into account
+        var scaleFactor = (850 / document.querySelector(".wrapper").offsetWidth);
 
         // make sure only the canvas is targeted
-        var offsetLeft = document.getElementById("canvas").offsetLeft;
-        var offsetTop = document.getElementById("canvas").offsetTop;
+        var offsetLeft = (scaleFactor * document.getElementById("canvas").offsetLeft);
+        var offsetTop = (scaleFactor * document.getElementById("canvas").offsetTop);
 
         // get coordinates relative to grid
-        var mouseX = event.clientX - offsetLeft;
-        var mouseY = event.clientY - offsetTop;
+        var mouseX = (scaleFactor * event.clientX - offsetLeft);
+        var mouseY = (scaleFactor * event.clientY - offsetTop);
 
         // ensure user clicked within bounds
-        if (mouseX < 0 || mouseX > 850 || mouseY < 0 || mouseY > 650) {
+        if (mouseX < 0 || mouseX > (scaleFactor * 850) || mouseY < 0 || mouseY > (scaleFactor * 650)) {
             console.log('out of bounds');
         } else {
             // get value of grid that is at that position
@@ -457,85 +462,162 @@
                 newY = posY - (rangeY - gridY);
             }
 
-            // see if a unit lives at that position
-            if (!grid.isWalkableAt(newX, newY)){
-                // something is there. is it a unit?
-                var unit = findInUnitsByGridCoordinates(newX, newY);
-
-                if (unit) {
-                    if (unit.id >= 2000){
-                        // it is an enemy unit
-                        setTargetForSelectedUnitsToId(unit.id);
-
-                        // deselect all units
-                        selectedUnits = [];
-                    } else {
-                        // it is your own unit
-                        if (!findInSelectedUnitsById(unit.id)) {
-                            // deselect all units
-                            selectedUnits = [];
-
-                            // was not selected, so select it
-                            selectedUnits.push(unit.id);
-                            edgeScrollingFlag = false;
-
-                            var audio = new Audio();
-                            if (parseInt(Math.random() * 1) === 0) {audio.src = "assets/sound-yes.mp3"}
-                            if (parseInt(Math.random() * 2) === 1) {audio.src = "assets/sound-orders.mp3"}
-                            audio.play();
-
-                        } else {
-                            // deselect all units
-                            selectedUnits = [];
-                            edgeScrollingFlag = false;
+            if (playerShadowMap[newY][newX] > 0) {
+                if (debug){console.log('tile visible')}
+                if (map[newY][newX] !== 1){
+                    if (debug){console.log('tile walkable')}
+                    if (!grid.isWalkableAt(newX, newY)){
+                        if (debug){console.log('tile contains unit')}
+                        var unit = findInUnitsByGridCoordinates(newX, newY);
+                        if (unit && unit.id < 1000) {
+                            if (debug){console.log('unit is scenery, moving map')}
+                            setNewMapCoordinates(newX, newY);
                         }
-
+                        if (unit && unit.id >= 1000 && unit.id < 2000) {
+                            if (debug){console.log('unit is own unit, deselecting all units, then selecting this one')}
+                            if (selectedUnits.length > 0 && findInSelectedUnitsById(unit.id)) {
+                                if (debug){console.log('unit was already selected, deselecting')}
+                                selectedUnits = [];
+                            } else {
+                                selectedUnits = [];
+                                selectedUnits.push(unit.id);
+                                edgeScrollingFlag = false;
+                                var audio = new Audio();
+                                var whichSound = parseInt(Math.random() * 2);
+                                if (whichSound === 0) {
+                                    audio.src = "assets/sound-yes.mp3"
+                                }
+                                if (whichSound === 1) {
+                                    audio.src = "assets/sound-orders.mp3"
+                                }
+                                audio.play();
+                            }
+                        }
+                        if (unit && unit.id >= 2000) {
+                            if (debug){console.log('unit is enemy')}
+                            if (selectedUnits.length > 0) {
+                                if (debug){console.log('units are selected, setting attack targets, then deselecting')}
+                                setTargetForSelectedUnitsToId(unit.id);
+                                selectedUnits = [];
+                                edgeScrollingFlag = false;
+                            } else {
+                                if (debug){console.log('no units are selected, moving map')}
+                                setNewMapCoordinates(newX, newY);
+                            }
+                        }
+                    } else {
+                        if (debug){console.log('visible, walkable, no units')}
+                        if (selectedUnits.length > 0) {
+                            moveSelectedUnitsToPosition(newX, newY);
+                        } else {
+                            if (debug){console.log('no units are selected, moving map')}
+                            setNewMapCoordinates(newX, newY);
+                        }
                     }
                 } else {
-                    // not a unit. move map.
+                    if (debug){console.log('tile not walkable, move map')}
                     setNewMapCoordinates(newX, newY);
                 }
-
             } else {
-                // this tile is walkable. so either move a selected unit there, or move the map selection
-                // if a unit was already selected, set its target coordinates to the newX, newY
-                if (map[newY][newX] !== 1 && selectedUnits.length > 0) {
-                    // move selected units
-                    for (var a = 0; a < selectedUnits.length; a++) {
-                        var selectedUnitId = selectedUnits[a];
-                        // console.log('moving unit '+selectedUnitId+' to coordinates '+newX+','+newY+' which has id '+map[newY][newX]);
-                        moveUnitToPosition(selectedUnitId, newX, newY);
-
-                        var audio = new Audio();
-                        if (parseInt(Math.random() * 1) === 0) {audio.src = "assets/sound-moving.mp3"}
-                        if (parseInt(Math.random() * 2) === 1) {audio.src = "assets/sound-okay.mp3"}
-                        audio.play();
-
-                        // clear all targets of selected units
-                        // clearing targets
-                        for (var ownUnit = 0; ownUnit < selectedUnits.length; ownUnit ++) {
-                            findUnitById(selectedUnits[ownUnit]).target = null;
-                        }
-                        // deselect the unit (this seems UI-wise to be best)
-                        selectedUnits = [];
+                if (debug){console.log('tile invisible')}
+                if (selectedUnits.length > 0) {
+                    if (debug){console.log('units are selected. whether tile is walkable or contains a unit, whatever, move the unit(s) to the nearest spot')}
+                    var nearestPath = findNearestPath(newX, newY);
+                    if (nearestPath) {
+                        var closestCoordinates = nearestPath[(nearestPath.length - 1)];
+                        moveSelectedUnitsToPosition(closestCoordinates[0], closestCoordinates[1])
                     }
                 } else {
-                    // move the view to the new location
+                    if (debug){console.log('no units are selected, thus just move the map to that position')}
                     setNewMapCoordinates(newX, newY);
                 }
             }
+        }
+    }
 
+    function findNearestPath(newX, newY) {
+        // calculate the shortest path on a direct map (fully walkable) but with units present
+
+        // assume only one unit is selected (later on this can be converted to a loop)
+        var unitX = findUnitById(selectedUnits[0]).gridX;
+        var unitY = findUnitById(selectedUnits[0]).gridY;
+
+        // construct new grid
+        var tempGrid = new PF.Grid(map[0].length, map.length);
+
+        // deduct units (including their sub destination grid coordinates)
+        for (var c = 0; c < units.length; c++) {
+            // current unit grid position
+            var x = units[c].gridX;
+            var y = units[c].gridY;
+            tempGrid.setWalkableAt(x, y, false);
+            // sub destination grid position
+            if (units[c].gridSubDestX && units[c].gridSubDestY) {
+                var x2 = units[c].gridSubDestX;
+                var y2 = units[c].gridSubDestY;
+                tempGrid.setWalkableAt(x2, y2, false);
+            }
+        }
+
+        if (!tempGrid.isWalkableAt(newX, newY)){
+            // set the requested unit walkable before calculating the path (or else it wont calculate a path)
+            tempGrid.setWalkableAt(newX, newY, true);
+            var directPath = finder.findPath(unitX, unitY, newX, newY, tempGrid);
+            tempGrid.setWalkableAt(newX, newY, false);
+            // pop the last one already, because that is the target tile, and it is not walkable in this case
+            directPath.pop();
+        } else {
+            var directPath = finder.findPath(unitX, unitY, newX, newY, tempGrid);
+        }
+
+        // now start deducting the path until the last position is accessible according to map (units are already taken into account by the grid/path)
+        while (map[(directPath[directPath.length - 1][1])][directPath[directPath.length - 1][0]] === 1) {
+            directPath.pop();
+
+            if (directPath.length === 1) {
+                // path exhausted
+                return false;
+            }
+        }
+
+        return directPath;
+    }
+
+    function moveSelectedUnitsToPosition(newX, newY) {
+        if (map[newY][newX] !== 1) {
+            // move selected units
+            for (var a = 0; a < selectedUnits.length; a++) {
+                var selectedUnitId = selectedUnits[a];
+                if (debug){console.log('moving unit '+selectedUnitId+' to coordinates '+newX+','+newY+' which has id '+map[newY][newX])}
+                moveUnitToPosition(selectedUnitId, newX, newY);
+
+                var audio = new Audio();
+                var whichSound = parseInt(Math.random() * 2);
+                if (whichSound === 0) {audio.src = "assets/sound-moving.mp3"}
+                if (whichSound === 1) {audio.src = "assets/sound-okay.mp3"}
+                audio.play();
+
+                // clear all targets of selected units
+                for (var ownUnit = 0; ownUnit < selectedUnits.length; ownUnit ++) {
+                    findUnitById(selectedUnits[ownUnit]).target = null;
+                }
+
+                // deselect the unit (this seems UI-wise to be best)
+                selectedUnits = [];
+            }
         }
     }
 
     function hoverHandler(event) {
+        var scaleFactor = (850 / document.querySelector(".wrapper").offsetWidth);
+
         // make sure only the canvas is targeted
-        var offsetLeft = document.getElementById("canvas").offsetLeft;
-        var offsetTop = document.getElementById("canvas").offsetTop;
+        var offsetLeft = (scaleFactor * document.getElementById("canvas").offsetLeft);
+        var offsetTop = (scaleFactor * document.getElementById("canvas").offsetTop);
 
         // get coordinates relative to grid
-        var mouseX = event.clientX - offsetLeft;
-        var mouseY = event.clientY - offsetTop;
+        var mouseX = (scaleFactor * event.clientX - offsetLeft);
+        var mouseY = (scaleFactor * event.clientY - offsetTop);
 
         if ((mouseY > 650 ) || (mouseX > 850) || (mouseX < 0 || (mouseX > 25 && mouseX < 825)) && (mouseY < 0 || (mouseY > 25 && mouseY < 625))) {
             edgeScrolling = false;
@@ -555,34 +637,27 @@
         }
     }
 
-    function setTargetForSelectedUnitsToId(id){
-        for (var unitToHaveTarget = 0; unitToHaveTarget < selectedUnits.length; unitToHaveTarget ++) {
-            findUnitById(selectedUnits[unitToHaveTarget]).target = id;
-        }
+    function setTargetForSelectedUnitsToId(id) {
+        if (selectedUnits.length > 0) {
+            var audio = new Audio();
+            audio.src = "assets/sound-attacking.mp3";
+            audio.play();
 
-        var audio = new Audio();
-        audio.src = "assets/sound-attacking.mp3";
-        audio.play();
+            for (var unitToHaveTarget = 0; unitToHaveTarget < selectedUnits.length; unitToHaveTarget ++) {
+                findUnitById(selectedUnits[unitToHaveTarget]).target = id;
+            }
+        }
     }
 
-    function setNewMapCoordinates(x, y) {
-        posX = x;
-        posY = y;
+    function setNewMapCoordinates(newX, newY) {
+        posX = newX;
+        posY = newY;
 
         // magic corrections (determines how much the map is allowed to move out of view. 8 for x, 6 for y)
-        // todo: refactor to use rangeX, rangeY units
-        if (posX < rangeX) {
-            posX = rangeX
-        }
-        if (posX > (map[0].length - 9)) {
-            posX = (map[0].length - 9)
-        }
-        if (posY < rangeY) {
-            posY = rangeY
-        }
-        if (posY > (map.length - 7)) {
-            posY = (map.length - 7)
-        }
+        if (posX < rangeX) {posX = rangeX}
+        if (posX >= (map[0].length - rangeX)) {posX = (map[0].length - (rangeX + 1))}
+        if (posY < rangeY) {posY = rangeY}
+        if (posY >= (map.length - rangeY)) {posY = (map.length - (rangeY + 1))}
     }
 
     function createPathfindingGrid() {
@@ -616,18 +691,12 @@
     }
 
     function findInSelectedUnitsById(id) {
-        for (var selectedUnit = 0; selectedUnit < selectedUnits.length; selectedUnit ++){
-            if (selectedUnits[selectedUnit] === id) {
-                return true;
-            }
-        }
-
-        return false;
+        return (selectedUnits.includes(id));
     }
 
-    function findInUnitsByGridCoordinates(x, y) {
-        for (var unit = 0; unit < units.length; unit ++){
-            if (x === units[unit].gridX && y === units[unit].gridY && units[unit].id >= 1000) {
+    function findInUnitsByGridCoordinates(gridX, gridY) {
+        for (var unit = 0; unit < units.length; unit ++) {
+            if (gridX === units[unit].gridX && gridY === units[unit].gridY && units[unit].id >= 0) {
                 return units[unit];
             }
         }
@@ -654,21 +723,21 @@
         switch (tileType){
             case 1: return findImageObjectInArrayById('water-1');
             case 2: return findImageObjectInArrayById('grass');
-            case 100: return findImageObjectInArrayById('tree');
-            case 101: return findImageObjectInArrayById('rock');
             case 4: return state === null ? findImageObjectInArrayById('tank') : findImageObjectInArrayById('tank-' + state);
             case 5: return findImageObjectInArrayById('sand');
             case 6: return findImageObjectInArrayById('bridge');
             case 7: return findImageObjectInArrayById('tank-enemy');
             case 8: return findImageObjectInArrayById('water-2');
+            case 100: return findImageObjectInArrayById('tree');
+            case 101: return findImageObjectInArrayById('rock');
             default: console.log('unknown tileType provided');return false;
         }
     }
 
-    function findImageObjectInArrayById(id){
-        for (var imageObject = 0; imageObject < bitmaps.length; imageObject ++){
-            if (bitmaps[imageObject]['id'] === id) {
-                return bitmaps[imageObject];
+    function findImageObjectInArrayById(id) {
+        for (var imageObject = 0; imageObject < images.length; imageObject ++){
+            if (images[imageObject]['id'] === id) {
+                return images[imageObject];
             }
         }
     }
@@ -688,7 +757,7 @@
         context.globalAlpha = 1;
     }
 
-    function moveUnitToPosition(unitId, newGridX, newGridY){
+    function moveUnitToPosition(unitId, newGridX, newGridY) {
         // simply saves new grid position for a unit
         var unitToBeMoved = findUnitById(unitId);
 
@@ -703,34 +772,32 @@
         }
         // note that the given x, y are already adjusted to fit the current view
         var imageId = getBitmapForTileType(unit.unitType, state);
-        context.globalAlpha = alpha;
         context.save();
+        context.globalAlpha = alpha;
         context.translate(x + (tileWidth / 2), y + (tileHeight / 2)); // move canvas to spawn / pivoting position
         context.rotate(rotation * Math.PI / 180); // rotate to given value in radians
         context.drawImage(imageId['img'], 0 - (tileWidth / 2), 0 - (tileHeight / 2));
         context.restore();
-        context.globalAlpha = 1;
 
         // selection caret
         context.strokeStyle = "#333";
         context.lineWidth = 2;
-        if (findInSelectedUnitsById(unit.id)){context.strokeRect(x, y, tileWidth, tileHeight)}
+        if (findInSelectedUnitsById(unit.id)) {
+            context.strokeRect(x, y, tileWidth, tileHeight)
+        }
     }
 
     function updateShadowMapForUnit(unit) {
-        if (unit.id >= 1000 && unit.id < 2000){
+        if (unit.id >= 1000 && unit.id < 2000) {
             playerShadowMap[unit.gridY -3][unit.gridX] = (playerShadowMap[unit.gridY - 3][unit.gridX] === 1) ? 1 : .5;
-
             playerShadowMap[unit.gridY -2][unit.gridX - 1] = (playerShadowMap[unit.gridY - 2][unit.gridX - 1] === 1) ? 1 : .5;
             playerShadowMap[unit.gridY -2][unit.gridX] = 1;
             playerShadowMap[unit.gridY -2][unit.gridX + 1] = (playerShadowMap[unit.gridY - 2][unit.gridX + 1] === 1) ? 1 : .5;
-
             playerShadowMap[unit.gridY -1][unit.gridX - 2] = (playerShadowMap[unit.gridY - 1][unit.gridX - 2] === 1) ? 1 : .5;
             playerShadowMap[unit.gridY -1][unit.gridX - 1] = 1;
             playerShadowMap[unit.gridY -1][unit.gridX] = 1;
             playerShadowMap[unit.gridY -1][unit.gridX + 1] = 1;
             playerShadowMap[unit.gridY -1][unit.gridX + 2] = (playerShadowMap[unit.gridY - 1][unit.gridX + 2] === 1) ? 1 : .5;
-
             playerShadowMap[unit.gridY][unit.gridX - 3] = (playerShadowMap[unit.gridY][unit.gridX - 3] === 1) ? 1 : .5;
             playerShadowMap[unit.gridY][unit.gridX - 2] = 1;
             playerShadowMap[unit.gridY][unit.gridX - 1] = 1;
@@ -738,33 +805,26 @@
             playerShadowMap[unit.gridY][unit.gridX + 1] = 1;
             playerShadowMap[unit.gridY][unit.gridX + 2] = 1;
             playerShadowMap[unit.gridY][unit.gridX + 3] = (playerShadowMap[unit.gridY][unit.gridX + 3] === 1) ? 1 : .5;
-
             playerShadowMap[unit.gridY + 1][unit.gridX -2] = (playerShadowMap[unit.gridY + 1][unit.gridX - 2] === 1) ? 1 : .5;
             playerShadowMap[unit.gridY + 1][unit.gridX - 1] = 1;
             playerShadowMap[unit.gridY + 1][unit.gridX] = 1;
             playerShadowMap[unit.gridY + 1][unit.gridX + 1] = 1;
             playerShadowMap[unit.gridY + 1][unit.gridX + 2] = (playerShadowMap[unit.gridY + 1][unit.gridX + 2] === 1) ? 1 : .5;
-
             playerShadowMap[unit.gridY + 2][unit.gridX -1] = 1;
             playerShadowMap[unit.gridY + 2][unit.gridX] = 1;
             playerShadowMap[unit.gridY + 2][unit.gridX + 1] = 1;
-
             playerShadowMap[unit.gridY + 3][unit.gridX] = (playerShadowMap[unit.gridY + 3][unit.gridX] === 1) ? 1 : .5;
-
         } else if(unit.id > 2000) {
             // note there is no fancy opacity stuff going on here since its not visible
             enemyShadowMap[unit.gridY -3][unit.gridX] = 1;
-
             enemyShadowMap[unit.gridY -2][unit.gridX - 1] = 1;
             enemyShadowMap[unit.gridY -2][unit.gridX] = 1;
             enemyShadowMap[unit.gridY -2][unit.gridX + 1] = 1;
-
             enemyShadowMap[unit.gridY -1][unit.gridX - 2] = 1;
             enemyShadowMap[unit.gridY -1][unit.gridX - 1] = 1;
             enemyShadowMap[unit.gridY -1][unit.gridX] = 1;
             enemyShadowMap[unit.gridY -1][unit.gridX + 1] = 1;
             enemyShadowMap[unit.gridY -1][unit.gridX + 2] = 1;
-
             enemyShadowMap[unit.gridY][unit.gridX - 3] = 1;
             enemyShadowMap[unit.gridY][unit.gridX - 2] = 1;
             enemyShadowMap[unit.gridY][unit.gridX - 1] = 1;
@@ -772,25 +832,24 @@
             enemyShadowMap[unit.gridY][unit.gridX + 1] = 1;
             enemyShadowMap[unit.gridY][unit.gridX + 2] = 1;
             enemyShadowMap[unit.gridY][unit.gridX + 3] = 1;
-
             enemyShadowMap[unit.gridY + 1][unit.gridX -2] = 1;
             enemyShadowMap[unit.gridY + 1][unit.gridX - 1] = 1;
             enemyShadowMap[unit.gridY + 1][unit.gridX] = 1;
             enemyShadowMap[unit.gridY + 1][unit.gridX + 1] = 1;
             enemyShadowMap[unit.gridY + 1][unit.gridX + 2] = 1;
-
             enemyShadowMap[unit.gridY + 2][unit.gridX -1] = 1;
             enemyShadowMap[unit.gridY + 2][unit.gridX] = 1;
             enemyShadowMap[unit.gridY + 2][unit.gridX + 1] = 1;
-
             enemyShadowMap[unit.gridY + 3][unit.gridX] = 1;
         }
+    }
 
-
+    function findInSpottedEnemiesArray(unitId) {
+        return (spottedEnemiesArray.includes(unitId))
     }
 
     function drawUnitsInMapSelection(){
-        for (var a = 0; a < units.length; a ++){
+        for (var a = 0; a < units.length; a ++) {
             // calculate relative x,y
             var relX = units[a].x - ((posX - rangeX) * tileWidth);
             var relY = units[a].y - ((posY - rangeY) * tileHeight);
@@ -798,24 +857,32 @@
             if (relX >= 0 && relX < 850 && relY >= 0 && relY < 650){
                 // if in view, draw the unit
                 var alpha = playerShadowMap[units[a].gridY][units[a].gridX];
+                if (alpha > 0 && units[a].id >= 2000) {
+                    if (!findInSpottedEnemiesArray(units[a].id)) {
+                        var audio = new Audio();
+                        audio.src = "assets/sound-enemyspotted.mp3";
+                        audio.play();
+                        spottedEnemiesArray.push(units[a].id)
+                    }
+                }
                 drawUnit(relX, relY, rotation, units[a], alpha);
             }
         }
     }
 
-    function getPathForUnitPositions(x, y, newx, newy, target = false) {
+    function getPathForUnitPositions(gridX, gridY, newX, newY, target = false) {
         // you need to reinstantiate the grid for each call! see https://github.com/qiao/PathFinding.js/issues/109
         grid = createPathfindingGrid();
 
         // right before calculating the path, set the current grid position to walkable (otherwise path wont be calculated)
-        grid.setWalkableAt(x, y, true);
+        grid.setWalkableAt(gridX, gridY, true);
         // if path is towards a target, set it walkable otherwise no path is calculated
-        if (target){grid.setWalkableAt(newx, newy, true)}
+        if (target){grid.setWalkableAt(newX, newY, true)}
         // calculate the path
-        var pathOutput = finder.findPath(x, y, newx, newy, grid);
+        var pathOutput = finder.findPath(gridX, gridY, newX, newY, grid);
         // reset the grid positions that previously were marked walkable
-        grid.setWalkableAt(x, y, false);
-        if (target){grid.setWalkableAt(newx, newy, false)}
+        grid.setWalkableAt(gridX, gridY, false);
+        if (target){grid.setWalkableAt(newX, newY, false)}
 
         // keep in mind, the path shouldnt end in the target's x,y, so pop that last entry off the path if moving towards a target
         if (target){pathOutput.pop()}
@@ -831,15 +898,18 @@
 
         if (unit.rateTimer > unit.rate) {
             // note that the changing of the tile to a 'shooting tile' is done by reading out rateTimer in drawUnit
-            if (soundEffects) {
-                
+            if (soundEffects && !shotsFired) {
+
                 var audio = new Audio();
-                audio.src = "assets/tank.wav";
-                audio.play()
+                audio.src = "assets/sound-shot.mp3";
+                audio.play();
+
+                shotsFired = true;
             }
             // ensure rateTimer eventually times out
             if (unit.rateTimer > (unit.rate + shotFrameTimeout)) {
                 unit.rateTimer = 0;
+                shotsFired = false;
             }
         }
     }
