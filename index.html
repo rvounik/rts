@@ -192,10 +192,10 @@
         {
             id: 1001,
             unitType: 4,
-            x: 450,
+            x: 950,
             y: 450,
             rotation: 90,
-            gridX: 9,
+            gridX: 19,
             gridY: 9,
             gridDestX: null,
             gridDestY: null,
@@ -249,7 +249,7 @@
             target: null,
             speed: 5,
             health: 100,
-            range: 4,
+            range: 3,
             destinationTimeout: 0,
             possiblePath: []
         },
@@ -269,7 +269,7 @@
             target: null,
             speed: 5,
             health: 100,
-            range: 4,
+            range: 3,
             destinationTimeout: 0,
             possiblePath: []
         },
@@ -289,7 +289,7 @@
             target: null,
             speed: 5,
             health: 100,
-            range: 4,
+            range: 3,
             destinationTimeout: 0,
             possiblePath: []
         },
@@ -411,6 +411,8 @@
     var enemyOffense = 0.5;
     var enemyDefense = 0.5;
     var enemyExploration = 0.9;
+    var enemySpeedForCheckingUnits = 5000;
+    var oldEnemyCheckTimer = 0;
 
     // trigger update function
     updateCanvas();
@@ -920,27 +922,13 @@
             var x = unit.x;
             var y = unit.y;
 
-            // first, check if gridDestX,Y still matches the target's X,Y
-            if (unit.target) {
-                var targetX = findUnitById(unit.target).gridX;
-                var targetY = findUnitById(unit.target).gridY;
-                if (unit.gridDestX !== targetX || unit.gridDestY !== targetY) {
-                    console.log('changing directions (why does this keep looping and where should it be placed so enemy doesnt immediately switch directions and run over objects and water?');
-                    // 'chasing' target
-                    unit.gridDestX = null;
-                    unit.gridDestY = null;
-                    unit.gridSubDestX = null;
-                    unit.gridSubDestY = null;
-                }
-            }
-
             // is unit movable (id>1000) and does it have a grid destination?
             if (unit.id >= 1000 && unit.gridDestX && unit.gridDestY) {
                 // is there a subtarget set?
                 if (unit.gridSubDestX && unit.gridSubDestY) {
                     // is subtarget reached?
                     if (unit.gridX === unit.gridSubDestX && unit.gridY === unit.gridSubDestY) {
-                        if (debug) {console.log('reached sub destination ' + unit.gridSubDestX + ',' + unit.gridSubDestY)}
+                        //if (debug) {console.log('reached sub destination ' + unit.gridSubDestX + ',' + unit.gridSubDestY)}
                         unit.gridSubDestX = null;
                         unit.gridSubDestY = null;
 
@@ -949,7 +937,7 @@
                         // is final target reached?
                         if (unit.gridX === unit.gridDestX && unit.gridY === unit.gridDestY) {
                             // reached final destination
-                            if (debug) {console.log('reached final destination ' + unit.gridDestX + ',' + unit.gridDestY)}
+                            //if (debug) {console.log('reached final destination ' + unit.gridDestX + ',' + unit.gridDestY)}
                             unit.path = [];
                             unit.gridSubDestX = null;
                             unit.gridSubDestY = null;
@@ -1151,10 +1139,10 @@
         for (var a=0; a<enemyShadowMap.length; a++) {
             for (var b=0; b<enemyShadowMap[a].length; b++) {
                 if (enemyShadowMap[a][b] > 0) {
-                    var unit = findInUnitsByGridCoordinates(a,b);
+                    var unit = findInUnitsByGridCoordinates(b,a);
                     if (unit && unit.id >= 1000 && unit.id < 2000) {
                         if (!possibleTargets.includes(unit.id)) {
-                            if (debug) {console.log('in this, for the enemy visible tile, it detected a player unit: ', findInUnitsByGridCoordinates(a, b))}
+                            if (debug) {console.log('in this, for the enemy visible tile, it detected a player unit: ', findInUnitsByGridCoordinates(b,a))}
                             possibleTargets.push(unit);
                         }
                     }
@@ -1181,7 +1169,7 @@
         }
 
         // see if there are less units with targets than it should have according to its defense parameter
-        if ((totalUnits - unitsWithoutTargets.length) < parseInt(enemyOffense * totalUnits)) {
+
             var possibleTargets = getAllVisibleTargets();
 
             if (possibleTargets.length > 0) {
@@ -1208,17 +1196,27 @@
                 // of all saved paths, simply take the shortest one and set its corresponding unit.id as a target for the corresponding unit
                 var shortestPath = possibleTargetsForUnits[0]; // a little redundancy should not matter much
                 for (var c = 0 ; c < possibleTargetsForUnits.length; c++) {
-                    if (possibleTargetsForUnits[c].path.length < shortestPath.path.length) {
-                        shortestPath = possibleTargetsForUnits[c];
+                    if (possibleTargetsForUnits[c].path.length < possibleTargetsForUnits[c].unit.range) {
+                        // if the path is shorter than the shooting distance (range) for the unit, set its target
+                        // and simply continue with the next. this is done to ensure the enemy will always defend itself
+                        // when you run in front of them, or they spot you during a scouting operation
+                        possibleTargetsForUnits[c].unit.target = possibleTargetsForUnits[c].target.id;
+                    } else {
+                        if (possibleTargetsForUnits[c].path.length < shortestPath.path.length) {
+                            shortestPath = possibleTargetsForUnits[c];
+                        }
                     }
                 }
 
                 if (debug) {console.log('found the shortest path to a target for all of my units: ',shortestPath)}
-                shortestPath.unit.target = shortestPath.target.id;
+                if ((totalUnits - unitsWithoutTargets.length) < parseInt(enemyOffense * totalUnits)) {
+                    // we only check if we need to set the target at the very end to ensure the defense stuff triggers
+                    shortestPath.unit.target = shortestPath.target.id;
+                }
             } else {
                 if (debug) {console.log('I dont have targets and according to my exploration parameter I am going to look around for enemy units instead')}
             }
-        }
+
     }
 
     function updateEdgeScroller() {
@@ -1272,8 +1270,10 @@
 
                 // abusing this 2 second timeout to efficiently search for new enemies in the revealed parts of the map
                 updateSpottedEnemies();
+            }
 
-                // abusing this 2 second timeout to efficiently search new targets for the enemy (can be parameter later on)
+            if (Date.now() - enemySpeedForCheckingUnits > oldEnemyCheckTimer) {
+                oldEnemyCheckTimer = Date.now();
                 updateEnemyTargets();
             }
         } else {
