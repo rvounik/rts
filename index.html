@@ -192,10 +192,10 @@
         {
             id: 1001,
             unitType: 4,
-            x: 950,
+            x: 450,
             y: 450,
             rotation: 90,
-            gridX: 19,
+            gridX: 9,
             gridY: 9,
             gridDestX: null,
             gridDestY: null,
@@ -241,8 +241,8 @@
             rotation: 0,
             gridX: 15,
             gridY: 9,
-            gridDestX: 32,
-            gridDestY: 9,
+            gridDestX: null,
+            gridDestY: null,
             gridSubDestX: null,
             gridSubDestY: null,
             path: [],
@@ -251,7 +251,6 @@
             health: 100,
             range: 3,
             destinationTimeout: 0,
-            possiblePath: []
         },
         {
             id: 2002,
@@ -261,8 +260,8 @@
             rotation: 0,
             gridX: 9,
             gridY: 15,
-            gridDestX: 28,
-            gridDestY: 9,
+            gridDestX: null,
+            gridDestY: null,
             gridSubDestX: null,
             gridSubDestY: null,
             path: [],
@@ -271,7 +270,6 @@
             health: 100,
             range: 3,
             destinationTimeout: 0,
-            possiblePath: []
         },
         {
             id: 2003,
@@ -281,8 +279,8 @@
             rotation: 0,
             gridX: 20,
             gridY: 6,
-            gridDestX: 10,
-            gridDestY: 6,
+            gridDestX: null,
+            gridDestY: null,
             gridSubDestX: null,
             gridSubDestY: null,
             path: [],
@@ -291,7 +289,6 @@
             health: 100,
             range: 3,
             destinationTimeout: 0,
-            possiblePath: []
         },
         {
             id: 100,
@@ -928,7 +925,7 @@
                 if (unit.gridSubDestX && unit.gridSubDestY) {
                     // is subtarget reached?
                     if (unit.gridX === unit.gridSubDestX && unit.gridY === unit.gridSubDestY) {
-                        //if (debug) {console.log('reached sub destination ' + unit.gridSubDestX + ',' + unit.gridSubDestY)}
+                        if (debug) {console.log('reached sub destination ' + unit.gridSubDestX + ',' + unit.gridSubDestY)}
                         unit.gridSubDestX = null;
                         unit.gridSubDestY = null;
 
@@ -1157,7 +1154,7 @@
         var unitsWithoutTargets = [];
         var totalUnits = 0;
 
-        // fill array with unassigned units and count how many units in total the enemy has
+        // fill array with unassigned units and while at it keep a count of total enemy units
         for (var enemyUnit = 0; enemyUnit < units.length; enemyUnit ++) {
             if (units[enemyUnit].id >= 2000) {
                 totalUnits ++;
@@ -1168,54 +1165,88 @@
             }
         }
 
-        // see if there are less units with targets than it should have according to its defense parameter
+        // see if there are less units with targets than there should be (according to its defense parameter)
+        var possibleTargets = getAllVisibleTargets();
 
-            var possibleTargets = getAllVisibleTargets();
+        if (possibleTargets.length > 0) {
+            if (debug) {console.log('I need more targets, I can choose from: ', possibleTargets)}
 
-            if (possibleTargets.length > 0) {
-                if (debug) {console.log('I need more targets, I can choose from: ', possibleTargets)}
-
-                var possibleTargetsForUnits = [];
-                for (var a = 0; a < unitsWithoutTargets.length; a++) {
-                    // loop through all possible targets and store the shortest path to it, for this unit, into the tempPossiblePaths array
-                    for (var b = 0; b < possibleTargets.length; b++) {
-                        var tempPath = getPathForUnitPositions(unitsWithoutTargets[a].gridX, unitsWithoutTargets[a].gridY, possibleTargets[b].gridX, possibleTargets[b].gridY, true);
-
-                        if (tempPath.length > 0 && tempPath.length > 0) {
-                            // adding shortest path for this unit to a target to the possibleTargetsForUnits array
-                            possibleTargetsForUnits.push({
-                                unit: unitsWithoutTargets[a],
-                                target: possibleTargets[b],
-                                path: tempPath
-                            });
-                        }
+            var possibleTargetsForUnits = [];
+            // loop through all 'idle' units
+            for (var a = 0; a < unitsWithoutTargets.length; a++) {
+                // loop through all possible targets and store the shortest path to it, for this unit, into the possibleTargetsForUnits array
+                for (var b = 0; b < possibleTargets.length; b++) {
+                    var tempPath = getPathForUnitPositions(unitsWithoutTargets[a].gridX, unitsWithoutTargets[a].gridY, possibleTargets[b].gridX, possibleTargets[b].gridY, true);
+                    // ensure path is valid
+                    if (tempPath && tempPath.length > 0) {
+                        // adding path for this enemy unit to a target to the possibleTargetsForUnits array
+                        possibleTargetsForUnits.push({
+                            unit: unitsWithoutTargets[a],
+                            target: possibleTargets[b],
+                            path: tempPath
+                        });
                     }
                 }
-                if (debug) {console.log('have built up collection of targets and paths for each unit: ', possibleTargetsForUnits)}
+            }
+            if (debug) {console.log('constructed collection of targets and paths for each enemy unit: ', possibleTargetsForUnits)}
 
+            if (possibleTargetsForUnits.length > 0) {
                 // of all saved paths, simply take the shortest one and set its corresponding unit.id as a target for the corresponding unit
-                var shortestPath = possibleTargetsForUnits[0]; // a little redundancy should not matter much
-                for (var c = 0 ; c < possibleTargetsForUnits.length; c++) {
+                var shortestPath = possibleTargetsForUnits[0]; // take the first one to test the other paths against
+
+                for (var c = 0; c < possibleTargetsForUnits.length; c++) {
                     if (possibleTargetsForUnits[c].path.length < possibleTargetsForUnits[c].unit.range) {
                         // if the path is shorter than the shooting distance (range) for the unit, set its target
                         // and simply continue with the next. this is done to ensure the enemy will always defend itself
-                        // when you run in front of them, or they spot you during a scouting operation
+                        // when you run in front of them, or when they spot you during exploring
                         possibleTargetsForUnits[c].unit.target = possibleTargetsForUnits[c].target.id;
                     } else {
+                        // if this path is shorter than the one that was stored before, replace it
                         if (possibleTargetsForUnits[c].path.length < shortestPath.path.length) {
                             shortestPath = possibleTargetsForUnits[c];
                         }
                     }
                 }
 
-                if (debug) {console.log('found the shortest path to a target for all of my units: ',shortestPath)}
+                if (debug) {console.log('found the shortest path to a target for one of the enemy units: ', shortestPath)}
+
                 if ((totalUnits - unitsWithoutTargets.length) < parseInt(enemyOffense * totalUnits)) {
-                    // we only check if we need to set the target at the very end to ensure the defense stuff triggers
+                    // checking whether new target should be set is purposely done at the end of the loop to ensure the
+                    // defense mechanism is triggered. otherwise you'd have to do the loop twice. also, do one at a time
+                    // since this game is simulating someone playing it, not actual tanks and battlefields and such.
                     shortestPath.unit.target = shortestPath.target.id;
                 }
-            } else {
-                if (debug) {console.log('I dont have targets and according to my exploration parameter I am going to look around for enemy units instead')}
             }
+        } else {
+            if (debug) {console.log('I dont have targets and depending on my exploration parameter I am going to look around for some')}
+            // todo: can parts of the code below be leveraged for the random positions at the game start?
+
+            var unitsWithoutTargetsOrDestinations = [];
+            // loop through the unitsWithoutTargets array and check whether the unit has a gridDestX, gridDestY. if not add to unitsWithoutTargetsOrDestinations array
+            for (var a = 0; a < unitsWithoutTargets.length; a++) {
+                if (unitsWithoutTargets[a].gridDestX === null) {
+                    unitsWithoutTargetsOrDestinations.push(unitsWithoutTargets[a]);
+                }
+            }
+
+            if (unitsWithoutTargetsOrDestinations.length > 0 && (parseInt(enemyExploration * unitsWithoutTargetsOrDestinations.length) > 0)) {
+                // find an unexplored spot on the map
+                var newY = parseInt(enemyShadowMap.length * Math.random());
+                var newX = parseInt(enemyShadowMap[0].length * Math.random());
+
+                while (map[newY][newX] === 1 || findInUnitsByGridCoordinates(newX, newY) || newY < rangeY || newX < rangeX || newY > (map.length - rangeY) || newX > (map[0].length - rangeX)) {
+                    newY = parseInt(enemyShadowMap.length * Math.random());
+                    newX = parseInt(enemyShadowMap[0].length * Math.random());
+                }
+
+                console.log('found coordinates that are not visible yet, but are valid to move to according to the map and units: ', newX, newY); // yeah, it cheats a bit to be more efficient.
+
+                // pick a random idle unit and send it off to these coordinates
+                var randomUnit = parseInt(Math.random() * unitsWithoutTargetsOrDestinations.length);
+
+                moveUnitToPosition(unitsWithoutTargetsOrDestinations[randomUnit].id, newX, newY);
+            }
+        }
 
     }
 
@@ -1254,9 +1285,9 @@
                 }
             }
 
-            if (Date.now() - 2000 > waterVariationTimer) {
+            if (Date.now() - 200 > waterVariationTimer) {
                 waterVariationTimer = Date.now();
-                // looping through all 1 in the map and replacing some with 8. likewise, all existing 8 are back to 1 again
+                // looping through all 1-s in the map and replacing some with 8-s. likewise, all existing 8-s are back to 1 again
                 for (var a = 0; a < map.length; a++) {
                     for (var b = 0; b < map[a].length; b++) {
                         if (map[a][b] === 8) {
@@ -1268,7 +1299,7 @@
                     }
                 }
 
-                // abusing this 2 second timeout to efficiently search for new enemies in the revealed parts of the map
+                // abusing this 2 second timeout to efficiently search for newly spotted enemies in the revealed parts of the map
                 updateSpottedEnemies();
             }
 
