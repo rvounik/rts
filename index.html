@@ -1239,10 +1239,12 @@
                     newX = parseInt(enemyShadowMap[0].length * Math.random());
                 }
 
-                console.log('found coordinates that are not visible yet, but are valid to move to according to the map and units: ', newX, newY); // yeah, it cheats a bit to be more efficient.
+                if (debug) {console.log('found coordinates that are not visible yet, but are valid to move to according to the map and units: ', newX, newY)} // yeah, it cheats a bit to be more efficient.
 
                 // pick a random idle unit and send it off to these coordinates
                 var randomUnit = parseInt(Math.random() * unitsWithoutTargetsOrDestinations.length);
+
+                if (parseInt(Math.random() * 10) === 1) {playSound('assets/sound-whereareyou.mp3')}
 
                 moveUnitToPosition(unitsWithoutTargetsOrDestinations[randomUnit].id, newX, newY);
             }
