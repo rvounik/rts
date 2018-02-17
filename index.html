@@ -176,6 +176,11 @@
             img: new Image()
         },
         {
+            id: 'tank-enemy-shot',
+            src: 'assets/tile-tank-enemy-shot.png',
+            img: new Image()
+        },
+        {
             id: 'rock',
             src: 'assets/tile-rock.png',
             img: new Image()
@@ -203,7 +208,7 @@
             gridSubDestY: null,
             path: [],
             target: null,
-            speed: 5,
+            speed: 6,
             health: 100,
             range: 3,
             rate: 2,
@@ -225,7 +230,7 @@
             gridSubDestY: null,
             path: [],
             target: null,
-            speed: 5,
+            speed: 6,
             health: 100,
             range: 3,
             rate: 2,
@@ -247,9 +252,12 @@
             gridSubDestY: null,
             path: [],
             target: null,
-            speed: 5,
+            speed: 4,
             health: 100,
             range: 3,
+            rate: 2,
+            damage: 5,
+            rateTimer: 0,
             destinationTimeout: 0,
         },
         {
@@ -266,9 +274,12 @@
             gridSubDestY: null,
             path: [],
             target: null,
-            speed: 5,
+            speed: 4,
             health: 100,
             range: 3,
+            rate: 2,
+            damage: 5,
+            rateTimer: 0,
             destinationTimeout: 0,
         },
         {
@@ -285,9 +296,12 @@
             gridSubDestY: null,
             path: [],
             target: null,
-            speed: 5,
+            speed: 4,
             health: 100,
             range: 3,
+            rate: 2,
+            damage: 5,
+            rateTimer: 0,
             destinationTimeout: 0,
         },
         {
@@ -297,7 +311,7 @@
             y: 450,
             gridX: 17,
             gridY: 9,
-            health: 100
+            health: 100,
         },
         {
             id: 101,
@@ -411,15 +425,19 @@
     var enemySpeedForCheckingUnits = 5000;
     var oldEnemyCheckTimer = 0;
 
+    gameover = false;
+
     // trigger update function
     updateCanvas();
 
     /***************************** functions *******************************/
 
     function playSound(sound) {
-        var audio = new Audio();
-        audio.src = sound;
-        audio.play();
+        if (soundEffects) {
+            var audio = new Audio();
+            audio.src = sound;
+            audio.play();
+        }
     }
 
     function loadImage(image) {
@@ -504,7 +522,7 @@
                             }
                         }
                         if (unit && unit.id >= 2000) {
-                            if (debug) {console.log('unit is enemy')}
+                            if (debug) {console.log('unit is enemy unit')}
                             if (selectedUnits.length > 0) {
                                 if (debug) {console.log('units are selected, setting attack targets, then deselecting')}
                                 setTargetForSelectedUnitsToId(unit.id);
@@ -737,7 +755,7 @@
             case 4: return state === null ? findImageObjectInArrayById('tank') : findImageObjectInArrayById('tank-' + state);
             case 5: return findImageObjectInArrayById('sand');
             case 6: return findImageObjectInArrayById('bridge');
-            case 7: return findImageObjectInArrayById('tank-enemy');
+            case 7: return state === null ? findImageObjectInArrayById('tank-enemy') : findImageObjectInArrayById('tank-enemy-' + state);
             case 8: return findImageObjectInArrayById('water-2');
             case 100: return findImageObjectInArrayById('tree');
             case 101: return findImageObjectInArrayById('rock');
@@ -821,9 +839,9 @@
             playerShadowMap[unit.gridY + 1][unit.gridX] = 1;
             playerShadowMap[unit.gridY + 1][unit.gridX + 1] = 1;
             playerShadowMap[unit.gridY + 1][unit.gridX + 2] = (playerShadowMap[unit.gridY + 1][unit.gridX + 2] === 1) ? 1 : .5;
-            playerShadowMap[unit.gridY + 2][unit.gridX -1] = 1;
+            playerShadowMap[unit.gridY + 2][unit.gridX -1] = (playerShadowMap[unit.gridY + 2][unit.gridX -1] === 1) ? 1 : .5;
             playerShadowMap[unit.gridY + 2][unit.gridX] = 1;
-            playerShadowMap[unit.gridY + 2][unit.gridX + 1] = 1;
+            playerShadowMap[unit.gridY + 2][unit.gridX + 1] = (playerShadowMap[unit.gridY + 2][unit.gridX +1] === 1) ? 1 : .5;
             playerShadowMap[unit.gridY + 3][unit.gridX] = (playerShadowMap[unit.gridY + 3][unit.gridX] === 1) ? 1 : .5;
         } else if (unit.id > 2000) {
             // note there is no fancy opacity stuff going on here since its not visible
@@ -903,7 +921,80 @@
             // note that the changing of the tile to a 'shooting tile' is done by reading out rateTimer in drawUnit
             if (soundEffects && !shotsFired) {
                 playSound('assets/sound-shot.mp3');
-                shotsFired = true;
+                findUnitById(unit.target).health -= unit.damage;
+                if (findUnitById(unit.target).health <= 0) {
+
+                    if (unit.id >= 2000) {
+                        // enemy attacks a player unit
+                        var totalPlayerUnits = 0;
+
+                        for (var a = 0; a < units.length; a++) {
+                            if (units[a].id === unit.target) {
+                                if (debug) {
+                                    console.log('found a destroyed unit, removing from array')
+                                }
+                                units.splice(a, 1);
+                                a--; // since array is shortened, that will screw up the iteration. this corrects it.
+
+                                unit.rateTimer = 0;
+                                shotsFired = false;
+                            } else {
+                                if (units[a].id >= 1000 && units[a].id < 2000) {
+                                    totalPlayerUnits++;
+                                }
+                            }
+                        }
+
+                        if (totalPlayerUnits === 0) {
+                            playSound('assets/sound-gameover.mp3');
+                            console.log('game over');
+                            gameover = true;
+                        } else {
+                            if (unit.id >= 1000 && unit.id < 2000) {
+                                playSound('assets/sound-unitlost.mp3');
+                            }
+                        }
+                    } else if (unit.id >= 1000 && unit.id < 2000) {
+                        // player attacks an enemy unit
+                        var totalEnemyUnits = 0;
+
+                        for (var a = 0; a < units.length; a++) {
+                            if (units[a].id === unit.target) {
+                                if (debug) {
+                                    console.log('found a destroyed unit, removing from array')
+                                }
+                                units.splice(a, 1);
+                                a--; // since array is shortened, that will screw up the iteration. this corrects it.
+
+                                unit.rateTimer = 0;
+                                shotsFired = false;
+                            } else {
+                                if (units[a].id >= 2000) {
+                                    totalEnemyUnits++;
+                                }
+                            }
+                        }
+
+                        if (totalEnemyUnits === 0) {
+                            playSound('assets/sound-victory.mp3');
+                            console.log('YOU HAVE WON');
+                            gameover = true;
+                        } else {
+                            if (unit.id >= 1000 && unit.id < 2000) {
+                                // todo: add enemy unit destroyed sound instead
+                                playSound('assets/sound-unitlost.mp3');
+                            }
+                        }
+                    }
+
+
+
+
+
+                } else {
+                    shotsFired = true;
+                }
+
             }
             // ensure rateTimer eventually times out
             if (unit.rateTimer > (unit.rate + shotFrameTimeout)) {
@@ -1017,6 +1108,11 @@
                         }
                     }
                 } else {
+                    if (unit.target && unit.target !== null  && !findUnitById(unit.target)) {
+                        if (debug) {console.log('cant find the targeted unit. was probably destroyed')}
+                        unit.target = null;
+                    }
+
                     var targetFlag = (unit.target !== null); // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
                     unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, targetFlag);
 
@@ -1028,6 +1124,7 @@
                             unit.gridSubDestY = null;
                             unit.gridDestX = null;
                             unit.gridDestY = null;
+
                             shootWithUnit(unit);
                         } else {
                             if (unit.path.length > 1) {
@@ -1061,6 +1158,11 @@
                   }
                 }
             else {
+                if (unit.target && unit.target !== null  && !findUnitById(unit.target)) {
+                    if (debug) {console.log('cant find the targeted unit. was probably destroyed')}
+                    unit.target = null;
+                }
+
                 // no gridDestX,Y set for this unit, does it have a target?
                 if (unit.id >= 1000 && unit.target !== null) {
                     // it has a target, so set destination coordinates to coordinates of target
@@ -1070,6 +1172,7 @@
                 } else {
                     // no target, no grid destination, so.. guard mode
                 }
+
             }
 
             // update x,y for this unit
@@ -1079,6 +1182,10 @@
     }
 
     function rotateUnitTowardsTheTarget(unit) {
+        if (unit.target && unit.target !== null  && !findUnitById(unit.target)) {
+            if (debug) {console.log('cant find the targeted unit. was probably destroyed')}
+            unit.target = null;
+        }
         // ensure unit is always pointed towards the target
         var targetUnit = findUnitById(unit.target);
 
@@ -1117,11 +1224,11 @@
     }
 
     function updateSpottedEnemies() {
-        for (var a=0; a<playerShadowMap.length; a++) {
-            for (var b = 0; b < playerShadowMap[a].length; b++) {
+        for (var a = 0; a < playerShadowMap.length; a ++) {
+            for (var b = 0; b < playerShadowMap[a].length; b ++) {
                 if (playerShadowMap[a][b] > 0) {
                     var spottedEnemy = findInUnitsByGridCoordinates(b, a);
-                    if (spottedEnemy && spottedEnemy.id >= 2000 && !findInSpottedEnemiesArray(spottedEnemy.id)){
+                    if (!gameover && spottedEnemy && spottedEnemy.id >= 2000 && !findInSpottedEnemiesArray(spottedEnemy.id)){
                         spottedEnemiesArray.push(spottedEnemy.id);
                         playSound('assets/sound-enemyspotted.mp3');
                     }
@@ -1133,10 +1240,10 @@
     function getAllVisibleTargets() {
         var possibleTargets = [];
 
-        for (var a=0; a<enemyShadowMap.length; a++) {
-            for (var b=0; b<enemyShadowMap[a].length; b++) {
+        for (var a = 0; a < enemyShadowMap.length; a ++) {
+            for (var b = 0; b < enemyShadowMap[a].length; b ++) {
                 if (enemyShadowMap[a][b] > 0) {
-                    var unit = findInUnitsByGridCoordinates(b,a);
+                    var unit = findInUnitsByGridCoordinates(b, a);
                     if (unit && unit.id >= 1000 && unit.id < 2000) {
                         if (!possibleTargets.includes(unit.id)) {
                             if (debug) {console.log('in this, for the enemy visible tile, it detected a player unit: ', findInUnitsByGridCoordinates(b,a))}
@@ -1249,7 +1356,6 @@
                 moveUnitToPosition(unitsWithoutTargetsOrDestinations[randomUnit].id, newX, newY);
             }
         }
-
     }
 
     function updateEdgeScroller() {
@@ -1287,7 +1393,7 @@
                 }
             }
 
-            if (Date.now() - 200 > waterVariationTimer) {
+            if (Date.now() - 2000 > waterVariationTimer) {
                 waterVariationTimer = Date.now();
                 // looping through all 1-s in the map and replacing some with 8-s. likewise, all existing 8-s are back to 1 again
                 for (var a = 0; a < map.length; a++) {
