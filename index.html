@@ -184,6 +184,11 @@
             id: 'rock',
             src: 'assets/tile-rock.png',
             img: new Image()
+        },
+        {
+            id: 'explosion',
+            src: 'assets/sheet-explosion.png',
+            img: new Image()
         }
     ];
 
@@ -255,8 +260,8 @@
             speed: 4,
             health: 100,
             range: 3,
-            rate: 2,
-            damage: 0,
+            rate: 2.5,
+            damage: 111,
             rateTimer: 0,
             destinationTimeout: 0,
         },
@@ -277,8 +282,8 @@
             speed: 4,
             health: 100,
             range: 3,
-            rate: 2,
-            damage: 0,
+            rate: 2.5,
+            damage: 111,
             rateTimer: 0,
             destinationTimeout: 0,
         },
@@ -299,8 +304,8 @@
             speed: 4,
             health: 100,
             range: 3,
-            rate: 2,
-            damage: 0,
+            rate: 2.5,
+            damage: 111,
             rateTimer: 0,
             destinationTimeout: 0,
         },
@@ -386,8 +391,8 @@
     var posY = 9;
 
     // dimensions of tile
-    tileWidth = 50;
-    tileHeight = 50;
+    var tileWidth = 50;
+    var tileHeight = 50;
 
     // facilitates edge scrolling
     var edgeScrollingTimer = 0;
@@ -397,14 +402,15 @@
     var scrollDirY = 0;
 
     // facilitates water variation
-    var waterVariationTimer = 0;
+    var oldWaterVariationTimer = 0;
 
     // determines timeout for the frame showing a unit shooting
     var shotFrameTimeout = 0.5;
     var shotsFired = false;
 
     // ensures spotted enemies are not spotted twice
-    spottedEnemiesArray = [];
+    var oldEnemySpottedTimer = 0;
+    var spottedEnemiesArray = [];
 
     // facilitates (pre)loading
     var assetsLoaded = false;
@@ -419,13 +425,20 @@
     var soundEffects = true;
     var debug = false;
 
-    var enemyOffense = 0.5;
-    var enemyDefense = 0.5;
+    // parameters that determine the opponents skillset
+    var enemyAggression = 0.5;
     var enemyExploration = 0.9;
     var enemySpeedForCheckingUnits = 5000;
-    var oldEnemyCheckTimer = 0;
 
-    gameover = false;
+    // timers to facilitate AI routines
+    var oldEnemyCheckTimer = 0;
+    var lookingForTargetsTimer = 0;
+
+    // when set to true, game is over
+    var gameover = false;
+
+    // keeps track of tile animations
+    var animations = [];
 
     // trigger update function
     updateCanvas();
@@ -666,11 +679,10 @@
 
     function setTargetForSelectedUnitsToId(id) {
         if (selectedUnits.length > 0) {
-            if (findUnitById(id).gridDestX !== null || findUnitById(id).gridDestY !== null) {
-                playSound('assets/sound-inpursuit.mp3');
-            } else {
-                playSound('assets/sound-attacking.mp3');
-            }
+            playSound('assets/sound-attacking.mp3');
+
+            // when enemy unit set as target, do not mention that unit was spotted (player is already attacking it!)
+            spottedEnemiesArray.push(id);
 
             for (var unitToHaveTarget = 0; unitToHaveTarget < selectedUnits.length; unitToHaveTarget ++) {
                 findUnitById(selectedUnits[unitToHaveTarget]).target = id;
@@ -742,7 +754,53 @@
                 var tileX = posX - rangeX;
                 tileX += col;
                     var alpha = playerShadowMap[tileY][tileX];
-                    drawBackgroundTile(col * tileWidth, row * tileHeight, map[tileY][tileX], alpha);
+                    if (map[tileY][tileX] >= 1000) {
+                        drawBackgroundTileWithAnimationFrameOverlay(col * tileWidth, row * tileHeight, map[tileY][tileX], alpha);
+                    } else {
+                        drawBackgroundTile(col * tileWidth, row * tileHeight, map[tileY][tileX], alpha);
+                    }
+            }
+        }
+    }
+
+    function drawBackgroundTile(x, y, tileType, alpha) {
+        var imageId = getBitmapForTileType(tileType);
+        context.globalAlpha = alpha;
+        context.drawImage(imageId['img'], x, y);
+        context.globalAlpha = 1;
+    }
+
+    function drawBackgroundTileWithAnimationFrameOverlay(x, y, tileType, alpha) {
+        // first we need to know what goes 'under' the animation frame(s). this can be retrieved from the animations array
+        for (var anim = 0; anim < animations.length; anim ++) {
+            if (animations[anim].id === tileType) {
+                var currentAnimation = animations[anim];
+            }
+        }
+
+        if (!currentAnimation) {console.log('given id not found in animations array!')}
+
+        // now, first draw the oldUnitType
+        var imageId = getBitmapForTileType(currentAnimation.oldUnitType);
+        context.globalAlpha = alpha;
+        context.drawImage(imageId['img'], x, y);
+        context.globalAlpha = 1;
+
+        if (debug) {console.log('going to put frame '+currentAnimation.frame+' of animation id '+tileType+' on top of it, this animation uses the anim sheet '+currentAnimation.type)}
+
+        // now draw the animation on top of it
+        var imageId = getBitmapForTileType(currentAnimation.type);
+        context.globalAlpha = alpha;
+        context.drawImage(imageId['img'], x, y);
+        // todo: add clipping mask positioned by currentAnimation.frame
+        context.globalAlpha = 1;
+
+        // last, increase timers for all animations (even when not in view)
+        for (var anim = 0; anim < animations.length; anim ++) {
+            animations[anim].timer ++;
+            if (animations[anim].timer > animations[anim].timeOut) {
+                animations[anim].frame ++;
+                animations[anim].timer = 0;
             }
         }
     }
@@ -759,6 +817,7 @@
             case 8: return findImageObjectInArrayById('water-2');
             case 100: return findImageObjectInArrayById('tree');
             case 101: return findImageObjectInArrayById('rock');
+            case 201: return findImageObjectInArrayById('explosion');
             default: if (debug) {console.log('unknown tileType provided')} return false;
         }
     }
@@ -777,13 +836,6 @@
                 return units[unit];
             }
         }
-    }
-
-    function drawBackgroundTile(x, y, tileType, alpha) {
-        var imageId = getBitmapForTileType(tileType);
-        context.globalAlpha = alpha;
-        context.drawImage(imageId['img'], x, y);
-        context.globalAlpha = 1;
     }
 
     function moveUnitToPosition(unitId, newGridX, newGridY) {
@@ -911,6 +963,23 @@
         return pathOutput;
     }
 
+    function playTileAnimationAtGridPosition(gridX, gridY, type) {
+        var nextAnimationId = 1000 + animations.length;
+
+        animations.push({
+            id: nextAnimationId,
+            gridX: gridX,
+            gridY: gridY,
+            type: type,
+            frame: 0,
+            timer: 0,
+            timeOut: 3,
+            oldUnitType: map[gridY][gridX]
+        });
+
+        map[gridY][gridX] = nextAnimationId;
+    }
+
     function shootWithUnit(unit) {
         rotateUnitTowardsTheTarget(unit);
 
@@ -930,10 +999,19 @@
 
                         for (var a = 0; a < units.length; a++) {
                             if (units[a].id === unit.target) {
-                                if (debug) {
-                                    console.log('found a destroyed unit, removing from array')
+                                if (debug) {console.log('found a destroyed unit, removing from array')}
+                                playSound('assets/sound-explosion.mp3');
+                                setTimeout(function() {playSound('assets/sound-unitlost.mp3')}, 2000);
+                                if (parseInt(Math.random() * 10) === 1) {
+                                    setTimeout(function() {playSound('assets/sound-tooweak.mp3')}, 6000);
                                 }
+                                // if selected, delete selected
+                                if (selectedUnits.includes(unit.target)) {
+                                    selectedUnits = [];
+                                }
+                                playTileAnimationAtGridPosition(units[a].gridX, units[a].gridY, 201);
                                 units.splice(a, 1);
+
                                 a--; // since array is shortened, that will screw up the iteration. this corrects it.
 
                                 unit.rateTimer = 0;
@@ -946,23 +1024,26 @@
                         }
 
                         if (totalPlayerUnits === 0) {
-                            playSound('assets/sound-gameover.mp3');
-                            console.log('game over');
+                            setTimeout(function() {playSound('assets/sound-gameover.mp3')}, 4000);
+                            console.log('you have lost');
                             gameover = true;
                         } else {
-                            if (unit.id >= 1000 && unit.id < 2000) {
-                                playSound('assets/sound-unitlost.mp3');
-                            }
+
                         }
                     } else if (unit.id >= 1000 && unit.id < 2000) {
-                        // player attacks an enemy unit
+                        // player attacks an enemy unit todo: remove duplication by extracting to external functions
                         var totalEnemyUnits = 0;
 
                         for (var a = 0; a < units.length; a++) {
                             if (units[a].id === unit.target) {
-                                if (debug) {
-                                    console.log('found a destroyed unit, removing from array')
+                                if (debug) {console.log('found a destroyed unit, removing from array')}
+                                playSound('assets/sound-explosion.mp3');
+                                setTimeout(function() {playSound('assets/sound-enemyunitdestroyed.mp3')}, 2000);
+                                if (parseInt(Math.random() * 10) === 1) {
+                                    setTimeout(function() {playSound('assets/sound-willdestroyyou.mp3')}, 6000);
                                 }
+
+                                playTileAnimationAtGridPosition(units[a].gridX, units[a].gridY, 201);
                                 units.splice(a, 1);
                                 a--; // since array is shortened, that will screw up the iteration. this corrects it.
 
@@ -976,14 +1057,9 @@
                         }
 
                         if (totalEnemyUnits === 0) {
-                            playSound('assets/sound-victory.mp3');
-                            console.log('YOU HAVE WON');
+                            setTimeout(function() {playSound('assets/sound-victory.mp3')}, 4000);
+                            console.log('you have won');
                             gameover = true;
-                        } else {
-                            if (unit.id >= 1000 && unit.id < 2000) {
-                                // todo: add enemy unit destroyed sound instead
-                                playSound('assets/sound-unitlost.mp3');
-                            }
                         }
                     }
                 } else {
@@ -1127,8 +1203,17 @@
                                 unit.gridSubDestX = unit.path[1][0];
                                 unit.gridSubDestY = unit.path[1][1];
                             } else {
-                                console.log('if you see this, run for cover!');
-                                // todo: implement timeout for target since this path is blocked
+                                // todo: extract to separate function
+                                unit.destinationTimeout ++;
+                                if (unit.destinationTimeout > 250) {
+                                    // time out destination for unit
+                                    unit.gridSubDestX = null;
+                                    unit.gridSubDestY = null;
+                                    unit.gridDestX = null;
+                                    unit.gridDestY = null;
+                                    unit.target = null;
+                                    unit.destinationTimeout = 0;
+                                }
                             }
                         }
                     } else {
@@ -1139,6 +1224,7 @@
                             unit.gridSubDestY = unit.path[1][1];
                         } else {
                             // path blocked
+                            // todo: extract to separate function
                             unit.destinationTimeout ++;
                             if (unit.destinationTimeout > 250) {
                                 // time out destination for unit
@@ -1168,7 +1254,6 @@
                 } else {
                     // no target, no grid destination, so.. guard mode
                 }
-
             }
 
             // update x,y for this unit
@@ -1226,7 +1311,8 @@
                     var spottedEnemy = findInUnitsByGridCoordinates(b, a);
                     if (!gameover && spottedEnemy && spottedEnemy.id >= 2000 && !findInSpottedEnemiesArray(spottedEnemy.id)){
                         spottedEnemiesArray.push(spottedEnemy.id);
-                        playSound('assets/sound-enemyspotted.mp3');
+                        // todo: I dont like it. it plays too often,
+//                        setTimeout(function() {playSound('assets/sound-enemyspotted.mp3')}, 3000);
                     }
                 }
             }
@@ -1234,6 +1320,7 @@
     }
 
     function getAllVisibleTargets() {
+        // todo: this is only used by enemy targeting routine? why not for player? can it be made independent?
         var possibleTargets = [];
 
         for (var a = 0; a < enemyShadowMap.length; a ++) {
@@ -1272,6 +1359,7 @@
         var possibleTargets = getAllVisibleTargets();
 
         if (possibleTargets.length > 0) {
+            lookingForTargetsTimer = 0;
             if (debug) {console.log('I need more targets, I can choose from: ', possibleTargets)}
 
             var possibleTargetsForUnits = [];
@@ -1313,7 +1401,7 @@
 
                 if (debug) {console.log('found the shortest path to a target for one of the enemy units: ', shortestPath)}
 
-                if ((totalUnits - unitsWithoutTargets.length) < parseInt(enemyOffense * totalUnits)) {
+                if ((totalUnits - unitsWithoutTargets.length) < parseInt(enemyAggression * totalUnits)) {
                     // checking whether new target should be set is purposely done at the end of the loop to ensure the
                     // defense mechanism is triggered. otherwise you'd have to do the loop twice. also, do one at a time
                     // since this game is simulating someone playing it, not actual tanks and battlefields and such.
@@ -1322,9 +1410,15 @@
             }
         } else {
             if (debug) {console.log('I dont have targets and depending on my exploration parameter I am going to look around for some')}
-            // todo: can parts of the code below be leveraged for the random positions at the game start?
 
+            lookingForTargetsTimer ++;
+            if (lookingForTargetsTimer > 10) {
+                lookingForTargetsTimer = 0;
+                playSound('assets/sound-whereareyou.mp3')
+
+            }
             var unitsWithoutTargetsOrDestinations = [];
+
             // loop through the unitsWithoutTargets array and check whether the unit has a gridDestX, gridDestY. if not add to unitsWithoutTargetsOrDestinations array
             for (var a = 0; a < unitsWithoutTargets.length; a++) {
                 if (unitsWithoutTargets[a].gridDestX === null) {
@@ -1332,7 +1426,7 @@
                 }
             }
 
-            if (unitsWithoutTargetsOrDestinations.length > 0 && (parseInt(enemyExploration * unitsWithoutTargetsOrDestinations.length) > 0)) {
+            if (unitsWithoutTargetsOrDestinations.length > 0 && (parseInt(Math.ceil(enemyExploration * unitsWithoutTargetsOrDestinations.length)) > 0)) {
                 // find an unexplored spot on the map
                 var newY = parseInt(enemyShadowMap.length * Math.random());
                 var newX = parseInt(enemyShadowMap[0].length * Math.random());
@@ -1346,8 +1440,6 @@
 
                 // pick a random idle unit and send it off to these coordinates
                 var randomUnit = parseInt(Math.random() * unitsWithoutTargetsOrDestinations.length);
-
-                if (parseInt(Math.random() * 10) === 1) {playSound('assets/sound-whereareyou.mp3')}
 
                 moveUnitToPosition(unitsWithoutTargetsOrDestinations[randomUnit].id, newX, newY);
             }
@@ -1389,8 +1481,10 @@
                 }
             }
 
-            if (Date.now() - 2000 > waterVariationTimer) {
-                waterVariationTimer = Date.now();
+            if (Date.now() - 2000 > oldWaterVariationTimer) {
+                // todo: instead of changing the actual tile number in map, cant you adjust the tiledrawing function
+                // todo: so it can start an animation sequence (waterAnimation['-1','-2',...]) when random cond is met?
+                oldWaterVariationTimer = Date.now();
                 // looping through all 1-s in the map and replacing some with 8-s. likewise, all existing 8-s are back to 1 again
                 for (var a = 0; a < map.length; a++) {
                     for (var b = 0; b < map[a].length; b++) {
@@ -1402,8 +1496,11 @@
                         }
                     }
                 }
+            }
 
-                // abusing this 2 second timeout to efficiently search for newly spotted enemies in the revealed parts of the map
+            if (Date.now() - 5000 > oldEnemySpottedTimer) {
+                oldEnemySpottedTimer = Date.now();
+
                 updateSpottedEnemies();
             }
 
