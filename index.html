@@ -261,7 +261,7 @@
             health: 100,
             range: 3,
             rate: 2.5,
-            damage: 111,
+            damage: 10,
             rateTimer: 0,
             destinationTimeout: 0,
         },
@@ -283,7 +283,7 @@
             health: 100,
             range: 3,
             rate: 2.5,
-            damage: 111,
+            damage: 10,
             rateTimer: 0,
             destinationTimeout: 0,
         },
@@ -305,7 +305,7 @@
             health: 100,
             range: 3,
             rate: 2.5,
-            damage: 111,
+            damage: 10,
             rateTimer: 0,
             destinationTimeout: 0,
         },
@@ -778,29 +778,27 @@
             }
         }
 
-        if (!currentAnimation) {console.log('given id not found in animations array!')}
+        if (!currentAnimation) {console.log('given id not found in animations array!')} // todo: remove, shouldnt happen
 
-        // now, first draw the oldUnitType
-        var imageId = getBitmapForTileType(currentAnimation.oldUnitType);
-        context.globalAlpha = alpha;
-        context.drawImage(imageId['img'], x, y);
-        context.globalAlpha = 1;
+        // now, first draw the oldUnitType (based on the old unit type as defined in the animations' entry
+        drawBackgroundTile(x, y, currentAnimation.oldUnitType, alpha);
 
         if (debug) {console.log('going to put frame '+currentAnimation.frame+' of animation id '+tileType+' on top of it, this animation uses the anim sheet '+currentAnimation.type)}
 
         // now draw the animation on top of it
         var imageId = getBitmapForTileType(currentAnimation.type);
         context.globalAlpha = alpha;
-        context.drawImage(imageId['img'], x, y);
-        // todo: add clipping mask positioned by currentAnimation.frame
-        context.globalAlpha = 1;
+        var offset = currentAnimation.frame * tileWidth;
+        context.drawImage(imageId['img'], offset, 0, 50, 50, x, y, 50, 50);
 
         // last, increase timers for all animations (even when not in view)
         for (var anim = 0; anim < animations.length; anim ++) {
-            animations[anim].timer ++;
-            if (animations[anim].timer > animations[anim].timeOut) {
-                animations[anim].frame ++;
-                animations[anim].timer = 0;
+            animations[anim].frame ++;
+
+            var animationSheetWidth = getBitmapForTileType(animations[anim].type)['img'].naturalWidth;
+            if (animations[anim].frame * tileWidth > animationSheetWidth){
+                map[animations[anim].gridY][animations[anim].gridX] = animations[anim].oldUnitType;
+                animations.splice(anim, 1);
             }
         }
     }
@@ -970,10 +968,10 @@
             id: nextAnimationId,
             gridX: gridX,
             gridY: gridY,
+            posX: posX,
+            posY: posY,
             type: type,
             frame: 0,
-            timer: 0,
-            timeOut: 3,
             oldUnitType: map[gridY][gridX]
         });
 
@@ -1401,7 +1399,7 @@
 
                 if (debug) {console.log('found the shortest path to a target for one of the enemy units: ', shortestPath)}
 
-                if ((totalUnits - unitsWithoutTargets.length) < parseInt(enemyAggression * totalUnits)) {
+                if ((totalUnits - unitsWithoutTargets.length) < parseInt(Math.ceil(enemyAggression * totalUnits))) {
                     // checking whether new target should be set is purposely done at the end of the loop to ensure the
                     // defense mechanism is triggered. otherwise you'd have to do the loop twice. also, do one at a time
                     // since this game is simulating someone playing it, not actual tanks and battlefields and such.
@@ -1409,13 +1407,10 @@
                 }
             }
         } else {
-            if (debug) {console.log('I dont have targets and depending on my exploration parameter I am going to look around for some')}
-
             lookingForTargetsTimer ++;
             if (lookingForTargetsTimer > 10) {
                 lookingForTargetsTimer = 0;
                 playSound('assets/sound-whereareyou.mp3')
-
             }
             var unitsWithoutTargetsOrDestinations = [];
 
@@ -1430,6 +1425,7 @@
                 // find an unexplored spot on the map
                 var newY = parseInt(enemyShadowMap.length * Math.random());
                 var newX = parseInt(enemyShadowMap[0].length * Math.random());
+                // todo: random is not per se unexplored. can you fix this?
 
                 while (map[newY][newX] === 1 || map[newY][newX] === 8 || findInUnitsByGridCoordinates(newX, newY) || newY < rangeY || newX < rangeX || newY > (map.length - rangeY) || newX > (map[0].length - rangeX)) {
                     newY = parseInt(enemyShadowMap.length * Math.random());
