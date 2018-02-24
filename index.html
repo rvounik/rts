@@ -110,6 +110,10 @@
     var shadowMapX;
     var shadowMapY;
 
+    // dimensions of tile
+    var tileWidth = 50;
+    var tileHeight = 50;
+
     var playerShadowMap = [];
     for (shadowMapY = 0; shadowMapY < map.length; shadowMapY ++) {
         tempArray = [];
@@ -198,181 +202,50 @@
     });
 
     // collection of objects describing all units in the game (100 > scenery units, 1000 > own units, 2000 > enemy units)
-    var units = [
-        {
-            id: 1001,
-            unitType: 4,
-            x: 450,
-            y: 450,
-            rotation: 90,
-            gridX: 9,
-            gridY: 9,
-            gridDestX: null,
-            gridDestY: null,
-            gridSubDestX: null,
-            gridSubDestY: null,
-            path: [],
-            target: null,
-            speed: 6,
-            health: 100,
-            range: 3,
-            rate: 2,
-            damage: 20,
-            rateTimer: 0,
-            destinationTimeout: 0
-        },
-        {
-            id: 1002,
-            unitType: 4,
-            x: 450,
-            y: 500,
-            rotation: 90,
-            gridX: 9,
-            gridY: 10,
-            gridDestX: null,
-            gridDestY: null,
-            gridSubDestX: null,
-            gridSubDestY: null,
-            path: [],
-            target: null,
-            speed: 6,
-            health: 100,
-            range: 3,
-            rate: 2,
-            damage: 20,
-            rateTimer: 0,
-            destinationTimeout: 0
-        },
-        {
-            id: 2001,
-            unitType: 7,
-            x: 750,
-            y: 450,
-            rotation: 0,
-            gridX: 15,
-            gridY: 9,
-            gridDestX: null,
-            gridDestY: null,
-            gridSubDestX: null,
-            gridSubDestY: null,
-            path: [],
-            target: null,
-            speed: 4,
-            health: 100,
-            range: 3,
-            rate: 2.5,
-            damage: 10,
-            rateTimer: 0,
-            destinationTimeout: 0,
-        },
-        {
-            id: 2002,
-            unitType: 7,
-            x: 450,
-            y: 750,
-            rotation: 0,
-            gridX: 9,
-            gridY: 15,
-            gridDestX: null,
-            gridDestY: null,
-            gridSubDestX: null,
-            gridSubDestY: null,
-            path: [],
-            target: null,
-            speed: 4,
-            health: 100,
-            range: 3,
-            rate: 2.5,
-            damage: 10,
-            rateTimer: 0,
-            destinationTimeout: 0,
-        },
-        {
-            id: 2003,
-            unitType: 7,
-            x: 500,
-            y: 450,
-            rotation: 0,
-            gridX: 20,
-            gridY: 6,
-            gridDestX: null,
-            gridDestY: null,
-            gridSubDestX: null,
-            gridSubDestY: null,
-            path: [],
-            target: null,
-            speed: 4,
-            health: 100,
-            range: 3,
-            rate: 2.5,
-            damage: 10,
-            rateTimer: 0,
-            destinationTimeout: 0,
-        },
-        {
-            id: 100,
-            unitType: 100,
-            x: 850,
-            y: 450,
-            gridX: 17,
-            gridY: 9,
-            health: 100,
-        },
-        {
-            id: 101,
-            unitType: 100,
-            x: 900,
-            y: 450,
-            gridX: 18,
-            gridY: 9,
-            health: 100
-        },
-        {
-            id: 102,
-            unitType: 100,
-            x: 850,
-            y: 500,
-            gridX: 17,
-            gridY: 10,
-            health: 100
-        },
-        {
-            id: 103,
-            unitType: 101,
-            x: 1650,
-            y: 700,
-            gridX: 33,
-            gridY: 14,
-            health: 100
-        },
-        {
-            id: 104,
-            unitType: 101,
-            x: 1650,
-            y: 750,
-            gridX: 33,
-            gridY: 15,
-            health: 100
-        },
-        {
-            id: 105,
-            unitType: 101,
-            x: 1600,
-            y: 750,
-            gridX: 32,
-            gridY: 15,
-            health: 100
-        },
-        {
-            id: 105,
-            unitType: 101,
-            x: 1550,
-            y: 750,
-            gridX: 31,
-            gridY: 15,
-            health: 100
+    var units = [];
+
+    class Unit {
+        constructor(id, unitType, x, y, rotation = 0, speed = 0, health = 0, range = 0, rate = 0, damage = 0) {
+            this.id = id;
+            this.unitType = unitType;
+            this.x = x;
+            this.y = y;
+            this.rotation = rotation;
+            this.gridX = this.x / tileWidth;
+            this.gridY = this.y / tileHeight;
+            this.gridDestX = null;
+            this.gridDestY = null;
+            this.gridSubDestX = null;
+            this.gridSubDestY = null;
+            this.path = [];
+            this.target = null;
+            this.speed = speed;
+            this.health = health;
+            this.range = range;
+            this.rate = rate;
+            this.damage = damage;
+            this.rateTimer = 0;
+            this.destinationTimeout = 0;
         }
-    ];
+    }
+
+    // player units
+    units.push(new Unit(id = 1001, unitType = 4, x = 450, y = 450, rotation = 90, speed = 6, health = 100, range = 3, rate = 2.5, damage = 10));
+
+    // enemy units
+    units.push(new Unit(id = 2001, unitType = 7, x = 450, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
+    units.push(new Unit(id = 2002, unitType = 7, x = 1700, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
+
+    // trees
+    units.push(new Unit(id = 100, unitType = 100, x = 850, y = 450));
+    units.push(new Unit(id = 101, unitType = 100, x = 850, y = 500));
+    units.push(new Unit(id = 102, unitType = 100, x = 900, y = 450));
+
+    // rocks
+    units.push(new Unit(id = 103, unitType = 101, x = 1650, y = 700));
+    units.push(new Unit(id = 104, unitType = 101, x = 1650, y = 750));
+    units.push(new Unit(id = 105, unitType = 101, x = 1600, y = 750));
+    units.push(new Unit(id = 106, unitType = 101, x = 1550, y = 750));
 
     // loop through units to fill shadowmaps initially
     for (var unitI = 0; unitI < units.length; unitI ++) {
@@ -389,10 +262,6 @@
     // map start position (do not make it lower than rangeX, rangeY or higher than array size - range)
     var posX = 12;
     var posY = 9;
-
-    // dimensions of tile
-    var tileWidth = 50;
-    var tileHeight = 50;
 
     // facilitates edge scrolling
     var edgeScrollingTimer = 0;
@@ -681,7 +550,6 @@
         if (selectedUnits.length > 0) {
             playSound('assets/sound-attacking.mp3');
 
-            // when enemy unit set as target, do not mention that unit was spotted (player is already attacking it!)
             spottedEnemiesArray.push(id);
 
             for (var unitToHaveTarget = 0; unitToHaveTarget < selectedUnits.length; unitToHaveTarget ++) {
@@ -777,8 +645,6 @@
                 var currentAnimation = animations[anim];
             }
         }
-
-        if (!currentAnimation) {console.log('given id not found in animations array!')} // todo: remove, shouldnt happen
 
         // now, first draw the oldUnitType (based on the old unit type as defined in the animations' entry
         drawBackgroundTile(x, y, currentAnimation.oldUnitType, alpha);
@@ -990,7 +856,6 @@
                 playSound('assets/sound-shot.mp3');
                 findUnitById(unit.target).health -= unit.damage;
                 if (findUnitById(unit.target).health <= 0) {
-
                     if (unit.id >= 2000) {
                         // enemy attacks a player unit
                         var totalPlayerUnits = 0;
