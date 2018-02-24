@@ -230,11 +230,16 @@
     }
 
     // player units
-    units.push(new Unit(id = 1001, unitType = 4, x = 450, y = 450, rotation = 90, speed = 6, health = 100, range = 3, rate = 2.5, damage = 10));
+    units.push(new Unit(id = 1001, unitType = 4, x = 450, y = 450, rotation = 90, speed = 6, health = 1000, range = 3, rate = 2.5, damage = 90));
+    units.push(new Unit(id = 1002, unitType = 4, x = 450, y = 500, rotation = 90, speed = 6, health = 1000, range = 3, rate = 2.5, damage = 90));
 
     // enemy units
     units.push(new Unit(id = 2001, unitType = 7, x = 450, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
     units.push(new Unit(id = 2002, unitType = 7, x = 1700, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
+    units.push(new Unit(id = 2003, unitType = 7, x = 1700, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
+    units.push(new Unit(id = 2004, unitType = 7, x = 1700, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
+    units.push(new Unit(id = 2005, unitType = 7, x = 1700, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
+    units.push(new Unit(id = 2006, unitType = 7, x = 1700, y = 750, rotation = 0, speed = 4, health = 100, range = 3, rate = 4, damage = 15));
 
     // trees
     units.push(new Unit(id = 100, unitType = 100, x = 850, y = 450));
@@ -639,7 +644,7 @@
     }
 
     function drawBackgroundTileWithAnimationFrameOverlay(x, y, tileType, alpha) {
-        // first we need to know what goes 'under' the animation frame(s). this can be retrieved from the animations array
+        // first figure out what goes 'under' the animation frame(s). this can be retrieved from the animations array
         for (var anim = 0; anim < animations.length; anim ++) {
             if (animations[anim].id === tileType) {
                 var currentAnimation = animations[anim];
@@ -856,25 +861,33 @@
                 playSound('assets/sound-shot.mp3');
                 findUnitById(unit.target).health -= unit.damage;
                 if (findUnitById(unit.target).health <= 0) {
-                    if (unit.id >= 2000) {
-                        // enemy attacks a player unit
+                    if (unit.id >= 1000) {
+                        var totalEnemyUnits = 0;
                         var totalPlayerUnits = 0;
 
                         for (var a = 0; a < units.length; a++) {
                             if (units[a].id === unit.target) {
-                                if (debug) {console.log('found a destroyed unit, removing from array')}
                                 playSound('assets/sound-explosion.mp3');
-                                setTimeout(function() {playSound('assets/sound-unitlost.mp3')}, 2000);
-                                if (parseInt(Math.random() * 10) === 1) {
-                                    setTimeout(function() {playSound('assets/sound-tooweak.mp3')}, 6000);
+
+                                if (unit.id > 2000) {
+                                    setTimeout(function() {playSound('assets/sound-unitlost.mp3')}, 2000);
+                                    if (parseInt(Math.random() * 10) === 0) {
+                                        setTimeout(function() {if (!gameover) {playSound('assets/sound-tooweak.mp3')}}, 6000);
+                                    }
+
+                                    // if selected, delete selected
+                                    if (selectedUnits.includes(unit.target)) {
+                                        selectedUnits = [];
+                                    }
+                                } else {
+                                    setTimeout(function() {playSound('assets/sound-enemyunitdestroyed.mp3')}, 2000);
+                                    if (parseInt(Math.random() * 10) === 0) {
+                                        setTimeout(function() {if (!gameover) {playSound('assets/sound-willdestroyyou.mp3')}}, 6000);
+                                    }
                                 }
-                                // if selected, delete selected
-                                if (selectedUnits.includes(unit.target)) {
-                                    selectedUnits = [];
-                                }
+
                                 playTileAnimationAtGridPosition(units[a].gridX, units[a].gridY, 201);
                                 units.splice(a, 1);
-
                                 a--; // since array is shortened, that will screw up the iteration. this corrects it.
 
                                 unit.rateTimer = 0;
@@ -883,45 +896,21 @@
                                 if (units[a].id >= 1000 && units[a].id < 2000) {
                                     totalPlayerUnits++;
                                 }
-                            }
-                        }
-
-                        if (totalPlayerUnits === 0) {
-                            setTimeout(function() {playSound('assets/sound-gameover.mp3')}, 4000);
-                            console.log('you have lost');
-                            gameover = true;
-                        } else {
-
-                        }
-                    } else if (unit.id >= 1000 && unit.id < 2000) {
-                        // player attacks an enemy unit todo: remove duplication by extracting to external functions
-                        var totalEnemyUnits = 0;
-
-                        for (var a = 0; a < units.length; a++) {
-                            if (units[a].id === unit.target) {
-                                if (debug) {console.log('found a destroyed unit, removing from array')}
-                                playSound('assets/sound-explosion.mp3');
-                                setTimeout(function() {playSound('assets/sound-enemyunitdestroyed.mp3')}, 2000);
-                                if (parseInt(Math.random() * 10) === 1) {
-                                    setTimeout(function() {playSound('assets/sound-willdestroyyou.mp3')}, 6000);
-                                }
-
-                                playTileAnimationAtGridPosition(units[a].gridX, units[a].gridY, 201);
-                                units.splice(a, 1);
-                                a--; // since array is shortened, that will screw up the iteration. this corrects it.
-
-                                unit.rateTimer = 0;
-                                shotsFired = false;
-                            } else {
                                 if (units[a].id >= 2000) {
                                     totalEnemyUnits++;
                                 }
                             }
                         }
 
-                        if (totalEnemyUnits === 0) {
+                        if (totalPlayerUnits === 0) {
+                            setTimeout(function () {
+                                playSound('assets/sound-gameover.mp3')
+                            }, 4000);
+                            console.log('game over');
+                            gameover = true;
+                        } else if (totalEnemyUnits === 0) {
                             setTimeout(function() {playSound('assets/sound-victory.mp3')}, 4000);
-                            console.log('you have won');
+                            console.log('you are victorious');
                             gameover = true;
                         }
                     }
@@ -959,7 +948,7 @@
                         // is final target reached?
                         if (unit.gridX === unit.gridDestX && unit.gridY === unit.gridDestY) {
                             // reached final destination
-                            //if (debug) {console.log('reached final destination ' + unit.gridDestX + ',' + unit.gridDestY)}
+                            if (debug) {console.log('reached final destination ' + unit.gridDestX + ',' + unit.gridDestY)}
                             unit.path = [];
                             unit.gridSubDestX = null;
                             unit.gridSubDestY = null;
@@ -967,7 +956,7 @@
                             unit.gridDestY = null;
                         } else {
                             // recalculate path
-                            var target = unit.target !== null; // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
+                            var target = unit.target !== null; // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable resulting in no path. this corrects it.
                             unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, target);
 
                             // within attack range?
@@ -1047,12 +1036,12 @@
                         unit.target = null;
                     }
 
-                    var targetFlag = (unit.target !== null); // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable thus calculation will fail unless we pass this parameter so it is set to walkable
+                    var targetFlag = (unit.target !== null); // if target is set, the gridDestX,Y are the grid of a unit which is normally not walkable resulting in no path. this corrects it.
                     unit.path = getPathForUnitPositions(unit.gridX, unit.gridY, unit.gridDestX, unit.gridDestY, targetFlag);
 
                     if (unit.target !== null) {
                         if ((unit.path.length < unit.range && (unit.path.length > 0))) {
-                            // erase the path, we can shoot from here
+                            // erase the path, unit can shoot from here
                             unit.path = [];
                             unit.gridSubDestX = null;
                             unit.gridSubDestY = null;
@@ -1066,7 +1055,6 @@
                                 unit.gridSubDestX = unit.path[1][0];
                                 unit.gridSubDestY = unit.path[1][1];
                             } else {
-                                // todo: extract to separate function
                                 unit.destinationTimeout ++;
                                 if (unit.destinationTimeout > 250) {
                                     // time out destination for unit
@@ -1080,14 +1068,13 @@
                             }
                         }
                     } else {
-                        // no target set, see if we can set a subdestination
+                        // no target set, see if a subdestination can be set
                         if (unit.path.length > 1) {
                             // set next sub destination for this unit
                             unit.gridSubDestX = unit.path[1][0];
                             unit.gridSubDestY = unit.path[1][1];
                         } else {
                             // path blocked
-                            // todo: extract to separate function
                             unit.destinationTimeout ++;
                             if (unit.destinationTimeout > 250) {
                                 // time out destination for unit
@@ -1174,8 +1161,6 @@
                     var spottedEnemy = findInUnitsByGridCoordinates(b, a);
                     if (!gameover && spottedEnemy && spottedEnemy.id >= 2000 && !findInSpottedEnemiesArray(spottedEnemy.id)){
                         spottedEnemiesArray.push(spottedEnemy.id);
-                        // todo: I dont like it. it plays too often,
-//                        setTimeout(function() {playSound('assets/sound-enemyspotted.mp3')}, 3000);
                     }
                 }
             }
@@ -1183,7 +1168,6 @@
     }
 
     function getAllVisibleTargets() {
-        // todo: this is only used by enemy targeting routine? why not for player? can it be made independent?
         var possibleTargets = [];
 
         for (var a = 0; a < enemyShadowMap.length; a ++) {
@@ -1275,7 +1259,7 @@
             lookingForTargetsTimer ++;
             if (lookingForTargetsTimer > 10) {
                 lookingForTargetsTimer = 0;
-                playSound('assets/sound-whereareyou.mp3')
+                if (!gameover) {playSound('assets/sound-whereareyou.mp3')}
             }
             var unitsWithoutTargetsOrDestinations = [];
 
@@ -1290,7 +1274,7 @@
                 // find an unexplored spot on the map
                 var newY = parseInt(enemyShadowMap.length * Math.random());
                 var newX = parseInt(enemyShadowMap[0].length * Math.random());
-                // todo: random is not per se unexplored. can you fix this?
+                // todo: technically, random !== unexplored
 
                 while (map[newY][newX] === 1 || map[newY][newX] === 8 || findInUnitsByGridCoordinates(newX, newY) || newY < rangeY || newX < rangeX || newY > (map.length - rangeY) || newX > (map[0].length - rangeX)) {
                     newY = parseInt(enemyShadowMap.length * Math.random());
@@ -1343,8 +1327,6 @@
             }
 
             if (Date.now() - 2000 > oldWaterVariationTimer) {
-                // todo: instead of changing the actual tile number in map, cant you adjust the tiledrawing function
-                // todo: so it can start an animation sequence (waterAnimation['-1','-2',...]) when random cond is met?
                 oldWaterVariationTimer = Date.now();
                 // looping through all 1-s in the map and replacing some with 8-s. likewise, all existing 8-s are back to 1 again
                 for (var a = 0; a < map.length; a++) {
