@@ -19,3 +19,5 @@ features:
 - support for animation sheets
 
 note that this game is deliberately written in plain Javascript enclosed in a simple <script> tag
+
+rvo, 2018
