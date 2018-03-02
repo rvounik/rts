@@ -17,3 +17,5 @@ features:
 - support for mobile devices (canvas scales yet remains functional)
 - fog of war
 - support for animation sheets
+
+note that this game is deliberately written in plain Javascript enclosed in a simple <script> tag
